@@ -269,6 +269,11 @@ namespace uva
             record operator*() {
                 return record(m_iterator->first);
             }
+            active_record_iterator<record> operator+(const size_t& i) {
+                auto it = m_iterator;
+                std::advance(it, i);
+                return active_record_iterator(it);
+            }
             bool operator!=(const active_record_iterator<record>& other) {
                 return m_iterator != other.m_iterator;
             }
@@ -297,7 +302,7 @@ namespace uva
             }
             active_record_reverse_iterator<record> operator+(const size_t& i) {
                 auto it = m_iterator;
-                it++;
+                std::advance(it, i);
                 return active_record_reverse_iterator(it);
             }
             record operator*() {
