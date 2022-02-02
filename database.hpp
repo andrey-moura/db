@@ -181,13 +181,15 @@ namespace uva
             }
             value& operator=(const std::string& other);
             value& operator=(const size_t& value) {
+                std::string other;
                 if (m_value == "TRUE" || m_value == "FALSE") {
-                    std::string other = value ? "TRUE" : "FALSE";
-                    m_value = other;
+                    other = value ? "TRUE" : "FALSE";                    
                 }
                 else {
-                    m_value = std::to_string(value);
+                    other = std::to_string(value);
                 }
+                m_table->update(m_recordId, m_key, other);
+                m_value = other;
                 return *this;
             }
             bool operator== (const std::string& other) {
