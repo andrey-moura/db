@@ -47,7 +47,7 @@ public:\
 
 #define uva_database_define_sqlite3(record, rows, db) \
 uva::database::table* record::table() { \
-    static uva::database::table* table = new uva::database::table(std::string(#record) + "s", rows, new uva::database::sqlite3_connection(db)); \
+    static uva::database::table* table = new uva::database::table(std::string(#record) + "s", rows, uva::database::sqlite3_connection::connect(db)); \
     return table; \
 }
 
@@ -70,6 +70,8 @@ namespace uva
             virtual bool insert(table* table, size_t id, const std::map<std::string, std::string>& relations) = 0;
             virtual void update(size_t id, const std::string& key, const std::string& value, table* table) = 0;
             virtual void destroy(size_t id, uva::database::table* table) = 0;
+        public:
+            static std::map<std::string, basic_connection*> s_connections;
         };
 
         class sqlite3_connection : public basic_connection
@@ -82,6 +84,7 @@ namespace uva
                 sqlite3 *m_database = nullptr;
                 std::filesystem::path m_database_path;
             public:
+                static sqlite3_connection* connect(const std::string& database);
                 virtual bool open() override;
                 virtual bool is_open() const override;
                 bool open(const std::filesystem::path& path);

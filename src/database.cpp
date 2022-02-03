@@ -1,5 +1,9 @@
 #include <database.hpp>
 
+//BASIC CONNECTION
+
+std::map<std::string, uva::database::basic_connection*> uva::database::basic_connection::s_connections;
+
 //SQLITE3 CONNECTION
 
 uva::database::sqlite3_connection::sqlite3_connection(const std::filesystem::path& database_path)
@@ -145,6 +149,15 @@ void uva::database::sqlite3_connection::destroy(size_t id, uva::database::table*
         sqlite3_free(error_msg);
         throw std::runtime_error(error_report);
     }
+}
+
+uva::database::sqlite3_connection* uva::database::sqlite3_connection::connect(const std::string& database)
+{
+    uva::database::basic_connection*& connection = uva::database::basic_connection::s_connections[database];
+    if(connection) return (uva::database::sqlite3_connection*)connection;
+
+    connection = new uva::database::sqlite3_connection(database);    
+    return (uva::database::sqlite3_connection*)connection;
 }
 
 //END SQLITE3 CONNECTION
