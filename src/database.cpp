@@ -108,7 +108,10 @@ bool uva::database::sqlite3_connection::insert(table* table, size_t id, const st
     
     for(const auto& row : table->m_rows) {
         sql += ", '";
-        sql += relations.find(row.first)->second;
+        auto it = relations.find(row.first);
+        if(it != relations.end()) {
+            sql += it->second;
+        }
         sql += "'";
     }
     
