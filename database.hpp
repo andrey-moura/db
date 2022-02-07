@@ -38,7 +38,8 @@ public:\
 	static uva::database::active_record_iterator<record> end() { return uva::database::active_record_iterator<record>(table()->m_relations.end()); } \
     static uva::database::active_record_reverse_iterator<record> rbegin() { return uva::database::active_record_reverse_iterator<record>(table()->m_relations.rbegin()); } \
 	static uva::database::active_record_reverse_iterator<record> rend() { return uva::database::active_record_reverse_iterator<record>(table()->m_relations.rend()); } \
-    static size_t count() { return table()->m_relations.size(); } 
+    static size_t count() { return table()->m_relations.size(); } \
+    static size_t column_count() { return table()->m_rows.size(); }
 
 //std::string& operator[](const std::string& str) { return m_table[str]; }
 // #define uva_database_define(record, params) \
@@ -225,7 +226,7 @@ namespace uva
             basic_active_record(value& _record);
         public:
             bool present() const;
-            void destroy();
+            void destroy();            
         public:
             size_t id = -1; 
         protected:
@@ -233,7 +234,9 @@ namespace uva
             virtual table* get_table() = 0;            
         public:
             value at(const std::string& key);
+            value at(size_t index);
             value operator[](const std::string& key);
+            value operator[](size_t index);
 
             // const value& operator[](const std::string& key) const {
             //     const table* table = get_table();

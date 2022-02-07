@@ -320,6 +320,24 @@ void uva::database::basic_active_record::destroy() {
     id = -1;
 }
 
+uva::database::value uva::database::basic_active_record::at(size_t index) {
+    uva::database::table* table = get_table();
+    auto recordIt = table->m_relations.find(id);
+    if (recordIt == table->m_relations.end()) {
+        throw std::out_of_range(table->m_name + " do not contains a record with id " + std::to_string(id));
+    }
+
+    if( index > recordIt->second.size()-1) {
+        throw std::out_of_range(table->m_name + " do not contains a column with index " + std::to_string(index));
+    }
+
+    auto relationIt = recordIt->second.begin();
+    std::advance(relationIt, index);
+        
+    //relationIt->se
+    return uva::database::value(relationIt->first, relationIt->second, id, table);
+}
+
 uva::database::value uva::database::basic_active_record::at(const std::string& key) {
     uva::database::table* table = get_table();
     auto recordIt = table->m_relations.find(id);
@@ -338,6 +356,10 @@ uva::database::value uva::database::basic_active_record::at(const std::string& k
 
 uva::database::value uva::database::basic_active_record::operator[](const std::string& key) {
     return at(key);
+}
+
+uva::database::value uva::database::basic_active_record::operator[](size_t index) {
+    return at(index);
 }
 
 //END ACTIVE RECORD
