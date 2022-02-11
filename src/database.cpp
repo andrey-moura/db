@@ -137,6 +137,48 @@ bool uva::database::sqlite3_connection::insert(table* table, size_t id, const st
     return true;
 }
 
+bool uva::database::sqlite3_connection::insert(table* table, size_t id, const std::vector<std::map<std::string, std::string>>& relations)
+{
+    //todo: merge those functions
+    char* error_msg = nullptr;
+    std::string sql = "INSERT INTO " + table->m_name + " VALUES\n";
+        
+    for (const auto& relation : relations) {
+        sql += "(" + std::to_string(id++);
+        for (const auto& row : table->m_rows) {
+            sql += ", \"";
+            auto it = relation.find(row.first);
+            if (it != relation.end()) {
+                if (row.second == "TEXT") {
+                    sql.reserve(sql.size() + it->second.size());
+                    for (const char& c : it->second) {
+                        if (c == '\"') {
+                            sql.push_back('\"');
+                        }
+                        sql.push_back(c);
+                    }
+                }
+                else {
+                    sql += it->second;
+                }
+            }
+            sql += "\"";
+        }
+        sql += "),\n";
+    }
+
+    sql[sql.size() - 2] = ';';
+    
+    int error = sqlite3_exec(m_database, sql.c_str(), nullptr, nullptr, &error_msg);
+
+    if (error) {
+        std::string error_report = error_msg;
+        sqlite3_free(error_msg);
+        throw std::runtime_error(error_report);
+    }
+    return true;
+}
+
 bool uva::database::sqlite3_connection::is_open() const
 {
     return m_database;
@@ -226,6 +268,21 @@ size_t uva::database::table::create(const std::map<std::string, std::string>& re
     }
 
     return std::string::npos;
+}
+
+void uva::database::table::create(std::vector<std::map<std::string, std::string>>& relations)
+{
+    size_t id = 0;
+    auto last = m_relations.rbegin();
+    if (last != m_relations.rend()) {
+        id = last->first + 1;
+    }
+
+    if (m_connection->insert(this, id, relations)) {
+        for (const auto& relation : relations) {
+            m_relations.insert({ id++, relation });
+        }
+    }    
 }
 
 size_t uva::database::table::create() {

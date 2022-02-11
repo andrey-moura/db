@@ -31,6 +31,7 @@ public:\
     static uva::database::table* table(); \
     static size_t create() { return table()->create(); } \
     static size_t create(const std::map<std::string, std::string>& relations) { return table()->create(relations); } \
+    static void create(std::vector<std::map<std::string, std::string>>& relations) { table()->create(relations); } \
     static size_t find(size_t id) { return table()->find(id); }  \
     static size_t find_by(const std::map<std::string,std::string>& relations) { return table()->find_by(relations); } \
     static uva::database::active_record_collection where(const std::map<std::string,std::string>& relations) { return table()->where(relations); } \
@@ -69,6 +70,7 @@ namespace uva
             virtual bool create_table(const table* table) const = 0;
             virtual void read_table(table* table) = 0;
             virtual bool insert(table* table, size_t id, const std::map<std::string, std::string>& relations) = 0;
+            virtual bool insert(table* table, size_t id, const std::vector<std::map<std::string, std::string>>& relations) = 0;
             virtual void update(size_t id, const std::string& key, const std::string& value, table* table) = 0;
             virtual void destroy(size_t id, uva::database::table* table) = 0;
         public:
@@ -92,6 +94,7 @@ namespace uva
                 virtual bool create_table(const table* table) const override;
                 virtual void read_table(table* table) override;
                 virtual bool insert(table* table, size_t id, const std::map<std::string, std::string>& relations) override;
+                virtual bool insert(table* table, size_t id, const std::vector<std::map<std::string, std::string>>& relations) override;
                 virtual void update(size_t id, const std::string& key, const std::string& value, table* table) override;
                 virtual void destroy(size_t id, uva::database::table* table) override;
         };
@@ -122,6 +125,7 @@ namespace uva
                 std::map<size_t, std::map<std::string, std::string>> m_relations;                
                 size_t create();
                 size_t create(const std::map<std::string, std::string>& relations);
+                void create(std::vector<std::map<std::string, std::string>>& relations);
                 size_t find(size_t id) const;
                 size_t find_by(const std::map<std::string, std::string>& relations);                
                 void destroy(size_t id);
