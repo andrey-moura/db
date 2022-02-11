@@ -107,12 +107,20 @@ bool uva::database::sqlite3_connection::insert(table* table, size_t id, const st
     std::string sql = "INSERT INTO " + table->m_name + " VALUES(" + std::to_string(id);
     
     for(const auto& row : table->m_rows) {
-        sql += ", '";
+        sql += ", \"";
         auto it = relations.find(row.first);
         if(it != relations.end()) {
-            sql += it->second;
+            if (row.second == "TEXT") {
+                sql.reserve(sql.size() + it->second.size());
+                for (const char& c : it->second) {
+                    if (c == '\"') {
+                        sql.push_back('\"');
+                    }
+                    sql.push_back(c);
+                }                
+            }
         }
-        sql += "'";
+        sql += "\"";
     }
     
     sql += ");";
