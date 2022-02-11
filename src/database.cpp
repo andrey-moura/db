@@ -119,6 +119,9 @@ bool uva::database::sqlite3_connection::insert(table* table, size_t id, const st
                     sql.push_back(c);
                 }                
             }
+            else {
+                sql += it->second;
+            }
         }
         sql += "\"";
     }
