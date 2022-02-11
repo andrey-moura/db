@@ -85,7 +85,7 @@ namespace uva
                 sqlite3 *m_database = nullptr;
                 std::filesystem::path m_database_path;
             public:
-                static sqlite3_connection* connect(const std::string& database);
+                static sqlite3_connection* connect(const std::filesystem::path& database);
                 virtual bool open() override;
                 virtual bool is_open() const override;
                 bool open(const std::filesystem::path& path);

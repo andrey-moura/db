@@ -154,9 +154,9 @@ void uva::database::sqlite3_connection::destroy(size_t id, uva::database::table*
     }
 }
 
-uva::database::sqlite3_connection* uva::database::sqlite3_connection::connect(const std::string& database)
+uva::database::sqlite3_connection* uva::database::sqlite3_connection::connect(const std::filesystem::path& database)
 {
-    uva::database::basic_connection*& connection = uva::database::basic_connection::s_connections[database];
+    uva::database::basic_connection*& connection = uva::database::basic_connection::s_connections[database.string()];
     if(connection) return (uva::database::sqlite3_connection*)connection;
 
     connection = new uva::database::sqlite3_connection(database);    
