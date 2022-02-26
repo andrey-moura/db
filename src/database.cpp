@@ -327,6 +327,12 @@ size_t uva::database::table::find_by(const std::map<std::string, std::string>& r
     return std::string::npos;
 }
 
+size_t uva::database::table::first() {
+    auto it = m_relations.begin();
+    return it != m_relations.end() ? it->first : std::string::npos;
+}
+
+
 uva::database::active_record_collection uva::database::table::where(const std::map<std::string, std::string>& relations)
 {
     active_record_collection collection;
