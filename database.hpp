@@ -109,6 +109,7 @@ namespace uva
             auto begin() { return m_matches.begin(); }
             auto end() { return m_matches.end(); }
             size_t size() { return m_matches.size(); }
+            bool empty() { return !m_matches.size(); }
             void reserve(size_t len) { m_matches.reserve(len); }
         public:
             active_record_collection& operator<<(size_t r);
