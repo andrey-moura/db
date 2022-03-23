@@ -41,7 +41,9 @@ public:\
     static uva::database::active_record_reverse_iterator<record> rbegin() { return uva::database::active_record_reverse_iterator<record>(table()->m_relations.rbegin()); } \
 	static uva::database::active_record_reverse_iterator<record> rend() { return uva::database::active_record_reverse_iterator<record>(table()->m_relations.rend()); } \
     static size_t count() { return table()->m_relations.size(); } \
-    static size_t column_count() { return table()->m_rows.size(); }     
+    static size_t column_count() { return table()->m_rows.size(); } \
+    static std::map<std::string, std::string>& columns() { return table()->m_rows; } \
+    static size_t first() { return table()->first(); } \
 
     //std::string& operator[](const std::string& str) { return m_table[str]; }
     // #define uva_database_define(record, params) \
@@ -122,6 +124,7 @@ namespace uva
             auto begin() { return m_matches.begin(); }
             auto end() { return m_matches.end(); }
             size_t size() { return m_matches.size(); }
+            bool empty() { return !m_matches.size(); }
             void reserve(size_t len) { m_matches.reserve(len); }
         public:
             active_record_collection& operator<<(size_t r);
