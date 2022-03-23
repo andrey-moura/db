@@ -8,6 +8,7 @@
 #include <exception>
 #include <vector>
 #include <iterator>
+#include <functional>
 
 #define uva_database_params(...) __VA_ARGS__ 
 
@@ -40,18 +41,28 @@ public:\
     static uva::database::active_record_reverse_iterator<record> rbegin() { return uva::database::active_record_reverse_iterator<record>(table()->m_relations.rbegin()); } \
 	static uva::database::active_record_reverse_iterator<record> rend() { return uva::database::active_record_reverse_iterator<record>(table()->m_relations.rend()); } \
     static size_t count() { return table()->m_relations.size(); } \
-    static size_t column_count() { return table()->m_rows.size(); }
+    static size_t column_count() { return table()->m_rows.size(); }     
 
-//std::string& operator[](const std::string& str) { return m_table[str]; }
-// #define uva_database_define(record, params) \
- //std::map<std::string, std::string> record::s_table = params; 
- //bool record::s_initialized = false;
+    //std::string& operator[](const std::string& str) { return m_table[str]; }
+    // #define uva_database_define(record, params) \
+     //std::map<std::string, std::string> record::s_table = params; 
+     //bool record::s_initialized = false;
 
 #define uva_database_define_sqlite3(record, rows, db) \
 uva::database::table* record::table() { \
-    static uva::database::table* table = new uva::database::table(std::string(#record) + "s", rows, uva::database::sqlite3_connection::connect(db)); \
+\
+    uva::database::sqlite3_connection* connection = uva::database::sqlite3_connection::connect(db);\
+\
+    static uva::database::table* table = new uva::database::table(std::string(#record) + "s", rows, connection); \
+    static uva::database::table* infotable = new uva::database::table(std::string(#record) + "s" + "TableMigrations", { \
+        { "title", "TEXT" },\
+        { "summary", "TEXT" },\
+        { "date", "INTEGER" }\
+    }, connection); \
     return table; \
 }
+
+#define uva_database_declare_migration(record) using record##Migration = uva::database::basic_migration<Beach>
 
 namespace uva
 {
@@ -73,8 +84,11 @@ namespace uva
             virtual bool insert(table* table, size_t id, const std::vector<std::map<std::string, std::string>>& relations) = 0;
             virtual void update(size_t id, const std::string& key, const std::string& value, table* table) = 0;
             virtual void destroy(size_t id, uva::database::table* table) = 0;
+            virtual void add_column(uva::database::table* table, const std::string& name, const std::string& type, const std::string& default_value) = 0;
         public:
-            static std::map<std::string, basic_connection*> s_connections;
+            static std::map<std::string, basic_connection*>& get_connections();
+            static basic_connection* get_connection(const std::string& connection);
+            static void add_connection(const std::string& index, basic_connection* connection);
         };
 
         class sqlite3_connection : public basic_connection
@@ -97,6 +111,7 @@ namespace uva
                 virtual bool insert(table* table, size_t id, const std::vector<std::map<std::string, std::string>>& relations) override;
                 virtual void update(size_t id, const std::string& key, const std::string& value, table* table) override;
                 virtual void destroy(size_t id, uva::database::table* table) override;
+                virtual void add_column(uva::database::table* table, const std::string& name, const std::string& type, const std::string& default_value) override;
         };
 
         class active_record_collection
@@ -112,29 +127,6 @@ namespace uva
             active_record_collection& operator<<(size_t r);
         };
 
-        class table
-        {
-            public:                
-                table(const std::string& name,
-                    const std::map<std::string, std::string>& rows,
-                    basic_connection* connection);
-
-                std::string m_name;
-                basic_connection* m_connection;
-                std::map<std::string, std::string> m_rows;
-                std::map<size_t, std::map<std::string, std::string>> m_relations;                
-                size_t create();
-                size_t create(const std::map<std::string, std::string>& relations);
-                void create(std::vector<std::map<std::string, std::string>>& relations);
-                size_t find(size_t id) const;
-                size_t find_by(const std::map<std::string, std::string>& relations);                
-                void destroy(size_t id);
-                bool relation_exists(size_t id) const;
-                void update(size_t id, const std::string& key, const std::string& value);
-                active_record_collection where(const std::map<std::string, std::string>& relations);
-                static std::map<std::string, table*>& get_tables();                
-        };
-
         class value 
         {
         public:
@@ -145,42 +137,10 @@ namespace uva
             size_t m_recordId;
             table* m_table;
         public:
-            bool present() {
-                return m_value.size();
-            }
+            bool present();
         public:
-            operator std::string& () {
-                return m_value;
-            }
-            operator size_t() {
-                if (m_table->m_rows[m_key] == "INTEGER") {
-                    bool valid = true;                    
-                    for (size_t i = 0; i < m_value.size(); ++i) {
-                        if (!isdigit(m_value[i])) {
-                            if (i == 0 && m_value[0] == '-') {
-                                continue;
-                            }
-                            else {
-                                valid = false;
-                                break;
-                            }
-                        }
-                    }
-
-                    if (valid) {
-                        //throws exception
-                        return std::stoi(m_value);
-                    }
-
-                    if (m_value == "TRUE") {
-                        return 1;
-                    }
-                    else if (m_value == "FALSE") {
-                        return 0;
-                    }
-                }                
-                throw std::bad_cast();
-            }
+            operator std::string& ();
+            operator size_t();
             friend std::string operator+(const std::string& other, value& value);
             friend std::ostream& operator<<(std::ostream& out, value& value)
             {
@@ -188,39 +148,37 @@ namespace uva
                 return out;
             }
             value& operator=(const std::string& other);
-            value& operator=(const size_t& value) {
-                std::string other;
-                if (m_value == "TRUE" || m_value == "FALSE") {
-                    other = value ? "TRUE" : "FALSE";                    
-                }
-                else {
-                    other = std::to_string(value);
-                }
-                m_table->update(m_recordId, m_key, other);
-                m_value = other;
-                return *this;
-            }
-            bool operator== (const std::string& other) {
-                return m_value == other;
-            }
-            bool operator!=(const std::string& other) {
-                return m_value != other;
-            }
-            bool operator== (const bool& other) {
-                if (m_table->m_rows[m_key] == "INTEGER") {
-                    if (other) {
-                        return m_value == "TRUE" || m_value != "0";
-                    }
-                    else {
-                        return m_value == "FALSE" || m_value == "0";
-                    }
-                }
-                else {
-                    throw std::bad_cast();
-                }
-            }
+            value& operator=(const size_t& value);
+            bool operator== (const std::string& other);
+            bool operator!=(const std::string& other);
+            bool operator== (const bool& other);
+        };
 
-        };        
+        class table
+        {
+        public:
+            table(const std::string& name,
+                const std::map<std::string, std::string>& rows,
+                basic_connection* connection);
+
+            std::string m_name;
+            basic_connection* m_connection;
+            std::map<std::string, std::string> m_rows;
+            std::map<size_t, std::map<std::string, std::string>> m_relations;
+            size_t create();
+            size_t create(const std::map<std::string, std::string>& relations);
+            void create(std::vector<std::map<std::string, std::string>>& relations);
+            size_t find(size_t id) const;
+            size_t find_by(const std::map<std::string, std::string>& relations);
+            void destroy(size_t id);
+            bool relation_exists(size_t id) const;
+            void update(size_t id, const std::string& key, const std::string& value);
+            active_record_collection where(const std::map<std::string, std::string>& relations);
+            static std::map<std::string, table*>& get_tables();
+            static table* get_table(const std::string& name);
+            std::string& at(size_t id, const std::string& key);
+            void add_column(const std::string& name, const std::string& type, const std::string& default_value);
+        };
         
         class basic_active_record
         {              
@@ -257,6 +215,53 @@ namespace uva
 
             //     return relationIt->second;
             // }
+        };
+        template<typename Record>
+        class basic_migration
+        {
+            size_t id;
+            std::string title;
+            std::string summary;
+            time_t date = -1;
+            bool m_pending = false;
+            std::function<bool(void)> m_migrate = nullptr;
+        public:
+            basic_migration(const std::string& __title, const std::string& __summary, const std::function<bool(void)>&& __migrate)
+                : title(__title), summary(__summary), m_migrate(std::move(__migrate)) {
+
+                uva::database::table* table = uva::database::table::get_table(Record::table()->m_name + "TableMigrations");
+
+                if (!table) throw std::logic_error(std::string("There is no such table '") + Record::table()->m_name + "TableMigrations" + "'");
+
+                id = table->find_by({ { "title", title } });
+
+                m_pending = id == std::string::npos;
+
+                if (is_pending()) {
+                    if (m_migrate()) {
+                        date = time(NULL);
+
+                        id = table->create({
+                            { "title",   title },
+                            { "summary",  summary },
+                            { "date",    std::to_string(date) }
+                        });
+                    }
+                }
+                else {
+                    date = std::stoll(table->at(id, "date"));
+                }
+            }
+        public:
+            bool is_pending() {
+                return m_pending;
+            }
+        public:
+            static void add_column(const std::string& name, const std::string& type, const std::string& default_value) {
+
+                Record::table()->add_column(name, type, default_value);
+
+            }        
         };
         template<typename record>
         class active_record_iterator
