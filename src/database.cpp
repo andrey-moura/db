@@ -427,7 +427,7 @@ uva::database::table* uva::database::table::get_table(const std::string& name) {
 
 size_t uva::database::table::create(const std::map<std::string, std::string>& relations)
 {
-    size_t id = 1;
+    size_t id = 0;
     auto last = m_relations.rbegin();
     if (last != m_relations.rend()) {
         id = last->first + 1;
@@ -443,7 +443,7 @@ size_t uva::database::table::create(const std::map<std::string, std::string>& re
 
 void uva::database::table::create(std::vector<std::map<std::string, std::string>>& relations)
 {
-    size_t id = 1;
+    size_t id = 0;
     auto last = m_relations.rbegin();
     if (last != m_relations.rend()) {
         id = last->first + 1;
@@ -502,7 +502,6 @@ size_t uva::database::table::first() {
     auto it = m_relations.begin();
     return it != m_relations.end() ? it->first : std::string::npos;
 }
-
 
 uva::database::active_record_collection uva::database::table::where(const std::map<std::string, std::string>& relations)
 {
