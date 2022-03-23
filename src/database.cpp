@@ -379,9 +379,13 @@ std::string& uva::database::table::at(size_t id, const std::string& key) {
         throw std::out_of_range(m_name + " do not contains a record with id " + std::to_string(id));
     }
 
-    throw std::out_of_range(m_name + " do not contains a column with name " + key);
+    auto colIt = it->second.find(key);
 
-    return it->second[key];
+    if (colIt == it->second.end()) {
+        throw std::out_of_range(m_name + " do not contains a column with name " + key);
+    }
+
+    return colIt->second;
 }
 
 void uva::database::table::add_column(const std::string& name, const std::string& type, const std::string& default_value) {

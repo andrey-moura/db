@@ -222,13 +222,18 @@ namespace uva
         class basic_migration
         {
             size_t id;
-            std::string title;
-            std::string summary;
             time_t date = -1;
             bool m_pending = false;
-            std::function<bool(void)> m_migrate = nullptr;
+            std::function<bool(const basic_migration<Record>&)> m_migrate = nullptr;
+            std::string title;
+            std::string summary;
         public:
-            basic_migration(const std::string& __title, const std::string& __summary, const std::function<bool(void)>&& __migrate)
+            std::string label;
+        public:
+            basic_migration(const basic_migration<Record>& other) = delete;
+            basic_migration() = delete;
+
+            basic_migration(const std::string& __title, const std::string& __summary, const std::function<bool(const basic_migration<Record>&)>&& __migrate)
                 : title(__title), summary(__summary), m_migrate(std::move(__migrate)) {
 
                 uva::database::table* table = uva::database::table::get_table(Record::table()->m_name + "TableMigrations");
@@ -240,7 +245,8 @@ namespace uva
                 m_pending = id == std::string::npos;
 
                 if (is_pending()) {
-                    if (m_migrate()) {
+                     make_label();
+                    if (m_migrate(*this)) {
                         date = time(NULL);
 
                         id = table->create({
@@ -252,18 +258,32 @@ namespace uva
                 }
                 else {
                     date = std::stoll(table->at(id, "date"));
+                    make_label();
                 }
             }
+        private:
+            void make_label() {
+                time_t now = std::time(NULL);
+
+                tm* local_time = std::localtime(&now);
+
+                char buffer[100];
+
+                std::strftime(buffer, 100, "%d%m%Y%H%M%S", local_time);
+
+                label = buffer;
+                label += "_" + title;
+            }
         public:
-            bool is_pending() {
+            bool is_pending() const {
                 return m_pending;
             }
         public:
-            static void add_column(const std::string& name, const std::string& type, const std::string& default_value) {
+            void add_column(const std::string& name, const std::string& type, const std::string& default_value) const {
 
                 Record::table()->add_column(name, type, default_value);
 
-            }        
+            }
         };
         template<typename record>
         class active_record_iterator
