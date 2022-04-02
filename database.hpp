@@ -87,6 +87,7 @@ namespace uva
             virtual void update(size_t id, const std::string& key, const std::string& value, table* table) = 0;
             virtual void destroy(size_t id, uva::database::table* table) = 0;
             virtual void add_column(uva::database::table* table, const std::string& name, const std::string& type, const std::string& default_value) = 0;
+            virtual void change_column(uva::database::table* table, const std::string& name, const std::string& type) = 0;
         public:
             static std::map<std::string, basic_connection*>& get_connections();
             static basic_connection* get_connection(const std::string& connection);
@@ -109,11 +110,13 @@ namespace uva
                 bool open(const std::filesystem::path& path);
                 virtual bool create_table(const table* table) const override;
                 virtual void read_table(table* table) override;
+                void alter_table(uva::database::table* table, const std::string& new_signature);
                 virtual bool insert(table* table, size_t id, const std::map<std::string, std::string>& relations) override;
                 virtual bool insert(table* table, size_t id, const std::vector<std::map<std::string, std::string>>& relations) override;
                 virtual void update(size_t id, const std::string& key, const std::string& value, table* table) override;
                 virtual void destroy(size_t id, uva::database::table* table) override;
                 virtual void add_column(uva::database::table* table, const std::string& name, const std::string& type, const std::string& default_value) override;
+                virtual void change_column(uva::database::table* table, const std::string& name, const std::string& type) override;
         };
 
         class active_record_collection
@@ -182,6 +185,7 @@ namespace uva
             static table* get_table(const std::string& name);
             std::string& at(size_t id, const std::string& key);
             void add_column(const std::string& name, const std::string& type, const std::string& default_value);
+            void change_column(const std::string& name, const std::string& type);
         };
         
         class basic_active_record
@@ -285,6 +289,11 @@ namespace uva
 
                 Record::table()->add_column(name, type, default_value);
 
+            }
+
+            void change_column(const std::string& name, const std::string& type) const
+            {
+                Record::table()->change_column(name, type);
             }
         };
         template<typename record>
