@@ -360,12 +360,8 @@ bool uva::database::value::operator!=(const std::string& other) {
 }
 bool uva::database::value::operator== (const bool& other) {
     if (m_table->m_rows[m_key] == "INTEGER") {
-        if (other) {
-            return m_value == "TRUE" || m_value != "0";
-        }
-        else {
-            return m_value == "FALSE" || m_value == "0";
-        }
+        uint64_t value = (uint64_t)*this;
+        value == other;
     }
     else {
         throw std::bad_cast();
@@ -431,7 +427,7 @@ uva::database::table* uva::database::table::get_table(const std::string& name) {
 
 size_t uva::database::table::create(const std::map<std::string, std::string>& relations)
 {
-    size_t id = 0;
+    size_t id = 1;
     auto last = m_relations.rbegin();
     if (last != m_relations.rend()) {
         id = last->first + 1;
@@ -447,7 +443,7 @@ size_t uva::database::table::create(const std::map<std::string, std::string>& re
 
 void uva::database::table::create(std::vector<std::map<std::string, std::string>>& relations)
 {
-    size_t id = 0;
+    size_t id = 1;
     auto last = m_relations.rbegin();
     if (last != m_relations.rend()) {
         id = last->first + 1;
