@@ -148,8 +148,8 @@ namespace uva
         public:
             operator std::string& ();
             operator size_t();
-            friend std::string operator+(const std::string& other, value& value);
-            friend std::ostream& operator<<(std::ostream& out, value& value)
+            friend std::string operator+(const std::string& other, uva::database::value& value);
+            friend std::ostream& operator<<(std::ostream& out, uva::database::value& value)
             {
                 out << value.operator std::string & ();
                 return out;
