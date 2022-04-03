@@ -123,6 +123,37 @@ void uva::database::sqlite3_connection::read_table(table* table)
     }    
 }
 
+void uva::database::sqlite3_connection::alter_table(uva::database::table* table, const std::string& new_signature)
+{
+    std::string cols = "ID";
+
+    for (const auto& row : table->m_rows)
+    {
+        cols += ", " + row.first;
+    }
+
+    std::string oldTableName = table->m_name + "_old";
+
+    char* error_msg = nullptr;
+    std::string sql =
+
+        "PRAGMA foreign_keys = off;"
+        "BEGIN TRANSACTION;"
+        "ALTER TABLE " + table->m_name + " RENAME TO " + oldTableName + ";"
+        "CREATE TABLE " + new_signature + ";"
+        "INSERT INTO " + table->m_name + " (" + cols + ") SELECT " + cols + " FROM " + oldTableName + ";"
+        "DROP TABLE " + oldTableName + ";"
+        "COMMIT; "
+        "PRAGMA foreign_keys = on;";
+
+    int error = sqlite3_exec(m_database, sql.c_str(), nullptr, nullptr, &error_msg);
+    if (error) {
+        std::string error_report = error_msg;
+        sqlite3_free(error_msg);
+        throw std::runtime_error(error_report);
+    }
+}
+
 bool uva::database::sqlite3_connection::insert(table* table, size_t id, const std::map<std::string, std::string>& relations) {
     char* error_msg = nullptr;
     std::string sql = "INSERT INTO " + table->m_name + " VALUES(" + std::to_string(id);
@@ -239,37 +270,29 @@ void uva::database::sqlite3_connection::add_column(uva::database::table* table, 
 
     cols_definitions += ", " + name + " " + type + " DEFAULT \"" + default_value + "\"";
 
-    std::string cols = "ID";
+    std::string new_definition = table->m_name + "(" + cols_definitions + ")";
 
-    for (const auto& row : table->m_rows)
-    {
-        cols += ", " + row.first;
-    }
-
-    std::string oldTableName = table->m_name + "_old";
-
-    char* error_msg = nullptr;
-    std::string sql =
-
-    "PRAGMA foreign_keys = off;"
-    "BEGIN TRANSACTION;"
-    "ALTER TABLE " + table->m_name + " RENAME TO " + oldTableName + ";"
-    "CREATE TABLE " + table->m_name + "(" + cols_definitions + ");"
-    "INSERT INTO " + table->m_name + " (" + cols + ") SELECT " + cols + " FROM " + oldTableName + ";"
-    "DROP TABLE " + oldTableName + ";"
-    "COMMIT; "
-    "PRAGMA foreign_keys = on;";        
-
-    int error = sqlite3_exec(m_database, sql.c_str(), nullptr, nullptr, &error_msg);
-    if (error) {
-        std::string error_report = error_msg;
-        sqlite3_free(error_msg);
-        throw std::runtime_error(error_report);
-    }
+    alter_table(table, new_definition);
 
     for (auto it = table->m_relations.begin(); it != table->m_relations.end(); ++it) {
         it->second.insert({ name, default_value });
     }
+}
+
+void uva::database::sqlite3_connection::change_column(uva::database::table* table, const std::string& name, const std::string& type)
+{
+    std::string cols_definitions = "ID INT PRIMARY KEY NOT NULL";
+
+    table->m_rows[name] = type;
+
+    for (const auto& row : table->m_rows)
+    {
+        cols_definitions += ", " + row.first + " " + row.second;
+    }    
+
+    std::string new_definition = table->m_name + "(" + cols_definitions + ")";
+
+    alter_table(table, new_definition);
 }
 
 uva::database::sqlite3_connection* uva::database::sqlite3_connection::connect(const std::filesystem::path& database)
@@ -360,12 +383,8 @@ bool uva::database::value::operator!=(const std::string& other) {
 }
 bool uva::database::value::operator== (const bool& other) {
     if (m_table->m_rows[m_key] == "INTEGER") {
-        if (other) {
-            return m_value == "TRUE" || m_value != "0";
-        }
-        else {
-            return m_value == "FALSE" || m_value == "0";
-        }
+        uint64_t value = (uint64_t)*this;
+        value == other;
     }
     else {
         throw std::bad_cast();
@@ -391,6 +410,12 @@ std::string& uva::database::table::at(size_t id, const std::string& key) {
 void uva::database::table::add_column(const std::string& name, const std::string& type, const std::string& default_value) {
 
     m_connection->add_column(this, name, type, default_value);
+
+}
+
+void uva::database::table::change_column(const std::string& name, const std::string& type) {
+
+    m_connection->change_column(this, name, type);
 
 }
 
@@ -431,7 +456,7 @@ uva::database::table* uva::database::table::get_table(const std::string& name) {
 
 size_t uva::database::table::create(const std::map<std::string, std::string>& relations)
 {
-    size_t id = 0;
+    size_t id = 1;
     auto last = m_relations.rbegin();
     if (last != m_relations.rend()) {
         id = last->first + 1;
@@ -447,7 +472,7 @@ size_t uva::database::table::create(const std::map<std::string, std::string>& re
 
 void uva::database::table::create(std::vector<std::map<std::string, std::string>>& relations)
 {
-    size_t id = 0;
+    size_t id = 1;
     auto last = m_relations.rbegin();
     if (last != m_relations.rend()) {
         id = last->first + 1;

@@ -42,6 +42,7 @@ public:\
 	static uva::database::active_record_reverse_iterator<record> rend() { return uva::database::active_record_reverse_iterator<record>(table()->m_relations.rend()); } \
     static size_t count() { return table()->m_relations.size(); } \
     static size_t column_count() { return table()->m_rows.size(); } \
+    static std::map<std::string, std::string>& columns() { return table()->m_rows; } \
     static size_t first() { return table()->first(); } \
 
     //std::string& operator[](const std::string& str) { return m_table[str]; }
@@ -86,6 +87,7 @@ namespace uva
             virtual void update(size_t id, const std::string& key, const std::string& value, table* table) = 0;
             virtual void destroy(size_t id, uva::database::table* table) = 0;
             virtual void add_column(uva::database::table* table, const std::string& name, const std::string& type, const std::string& default_value) = 0;
+            virtual void change_column(uva::database::table* table, const std::string& name, const std::string& type) = 0;
         public:
             static std::map<std::string, basic_connection*>& get_connections();
             static basic_connection* get_connection(const std::string& connection);
@@ -108,11 +110,13 @@ namespace uva
                 bool open(const std::filesystem::path& path);
                 virtual bool create_table(const table* table) const override;
                 virtual void read_table(table* table) override;
+                void alter_table(uva::database::table* table, const std::string& new_signature);
                 virtual bool insert(table* table, size_t id, const std::map<std::string, std::string>& relations) override;
                 virtual bool insert(table* table, size_t id, const std::vector<std::map<std::string, std::string>>& relations) override;
                 virtual void update(size_t id, const std::string& key, const std::string& value, table* table) override;
                 virtual void destroy(size_t id, uva::database::table* table) override;
                 virtual void add_column(uva::database::table* table, const std::string& name, const std::string& type, const std::string& default_value) override;
+                virtual void change_column(uva::database::table* table, const std::string& name, const std::string& type) override;
         };
 
         class active_record_collection
@@ -123,6 +127,7 @@ namespace uva
             auto begin() { return m_matches.begin(); }
             auto end() { return m_matches.end(); }
             size_t size() { return m_matches.size(); }
+            bool empty() { return !m_matches.size(); }
             void reserve(size_t len) { m_matches.reserve(len); }
         public:
             active_record_collection& operator<<(size_t r);
@@ -181,6 +186,7 @@ namespace uva
             static table* get_table(const std::string& name);
             std::string& at(size_t id, const std::string& key);
             void add_column(const std::string& name, const std::string& type, const std::string& default_value);
+            void change_column(const std::string& name, const std::string& type);
         };
         
         class basic_active_record
@@ -284,6 +290,11 @@ namespace uva
 
                 Record::table()->add_column(name, type, default_value);
 
+            }
+
+            void change_column(const std::string& name, const std::string& type) const
+            {
+                Record::table()->change_column(name, type);
             }
         };
         template<typename record>
