@@ -63,7 +63,7 @@ uva::database::table* record::table() { \
     return table; \
 }
 
-#define uva_database_declare_migration(record) using record##Migration = uva::database::basic_migration<Beach>
+#define uva_database_declare_migration(record) using record##Migration = uva::database::basic_migration<record>
 
 namespace uva
 {
@@ -126,6 +126,7 @@ namespace uva
             void reserve(size_t len) { m_matches.reserve(len); }
         public:
             active_record_collection& operator<<(size_t r);
+            size_t operator[](const size_t& i) { return m_matches[i]; }
         };
 
         class value 
