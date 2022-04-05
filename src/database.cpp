@@ -95,31 +95,66 @@ bool uva::database::sqlite3_connection::create_table(const uva::database::table*
 
 void uva::database::sqlite3_connection::read_table(table* table)
 {
-        /* Create SQL statement */
-    std::string sql = "SELECT * FROM " + table->m_name;
+    table->m_rows.clear();
+    table->m_relations.clear();
 
-    /* Execute SQL statement */
+    std::string sql = "SELECT * FROM " + table->m_name + ";";
+    sqlite3_stmt* stmt;
+
+    int error = sqlite3_prepare_v2(m_database, sql.c_str(), sql.size(), &stmt, nullptr);
+
+    size_t colCount = sqlite3_column_count(stmt);
+
+    std::vector<std::string> indexCol;
+    std::vector<bool> indexText;
+
+    for (int colIndex = 0; colIndex < colCount; colIndex++) {        
+
+        std::string type = sqlite3_column_decltype(stmt, colIndex);
+        std::string name = sqlite3_column_name(stmt, colIndex);
+
+        if (type == "INT") {
+            type = "INTEGER";
+        }
+
+        indexCol.push_back(name);        
+        indexText.push_back(type == "INTEGER");
+
+        //Skip ID column
+        if (colIndex != 0) table->m_rows.insert({ name, "INTEGER" });
+    }
+      
+    while (sqlite3_step(stmt) == SQLITE_ROW) {
+        size_t id;
+        for (int colIndex = 0; colIndex < colCount; colIndex++) {
+
+            if (!colIndex) {
+                id = sqlite3_column_int(stmt, colIndex);
+            }
+            else {
+                const unsigned char* value = sqlite3_column_text(stmt, colIndex);
+
+                table->m_relations[id].insert({ indexCol[colIndex], std::string((const char*)value) });
+            }
+        }
+    }
+    //  Step, Clear and Reset the statement after each bind.
+    error = sqlite3_step(stmt);
+    error = sqlite3_clear_bindings(stmt);
+    error = sqlite3_reset(stmt);    
+
+    if (error) {        
+        //throw std::runtime_error(sqlite3_errmsg(m_database));
+    }
+
+    sqlite3_finalize(stmt);
 
     char* error_msg = nullptr;
-    int error = sqlite3_exec(m_database, sql.c_str(),
-        [](void *data, int columnCount, char** values, char** colNames )
-    {
-        uva::database::table* table = (uva::database::table*)data;
-        std::map<std::string, std::string> relations;
-
-        for(size_t i = 1; i < columnCount; ++i) {
-            relations.insert({ colNames[i], values[i] });
-        }         
-
-        table->m_relations.insert({ std::stoi(values[0]), relations });
-
-        return 0;
-    }, table, &error_msg);
 
     if (error) {
-        std::string error_report = error_msg;
-        sqlite3_free(error_msg);
-        throw std::runtime_error(error_report);
+        //std::string error_report = error_msg;
+        //sqlite3_free(error_msg);
+        //throw std::runtime_error(""/*error_report*/);
     }    
 }
 
