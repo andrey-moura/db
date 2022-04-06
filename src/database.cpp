@@ -69,9 +69,9 @@ bool uva::database::sqlite3_connection::create_table(const uva::database::table*
     std::string sql = "CREATE TABLE IF NOT EXISTS " + table->m_name + "("  \
     "ID INT PRIMARY KEY NOT NULL ";
 
-    for(const auto& row : table->m_rows)
+    for(const auto& col : table->m_columns)
     {
-        sql += ", " + row.first + " " + row.second;
+        sql += ", " + col.first + " " + col.second;
     }
 
     sql += ");";
@@ -95,7 +95,7 @@ bool uva::database::sqlite3_connection::create_table(const uva::database::table*
 
 void uva::database::sqlite3_connection::read_table(table* table)
 {
-    table->m_rows.clear();
+    table->m_columns.clear();
     table->m_relations.clear();
 
     std::string sql = "SELECT * FROM " + table->m_name + ";";
@@ -121,7 +121,7 @@ void uva::database::sqlite3_connection::read_table(table* table)
         indexText.push_back(type == "INTEGER");
 
         //Skip ID column
-        if (colIndex != 0) table->m_rows.insert({ name, "INTEGER" });
+        if (colIndex) table->m_columns.push_back({ name, "INTEGER" });
     }
       
     while (sqlite3_step(stmt) == SQLITE_ROW) {
@@ -162,7 +162,7 @@ void uva::database::sqlite3_connection::alter_table(uva::database::table* table,
 {
     std::string cols = "ID";
 
-    for (const auto& row : table->m_rows)
+    for (const auto& row : table->m_columns)
     {
         cols += ", " + row.first;
     }
@@ -193,11 +193,11 @@ bool uva::database::sqlite3_connection::insert(table* table, size_t id, const st
     char* error_msg = nullptr;
     std::string sql = "INSERT INTO " + table->m_name + " VALUES(" + std::to_string(id);
     
-    for(const auto& row : table->m_rows) {
+    for(const auto& col : table->m_columns) {
         sql += ", \"";
-        auto it = relations.find(row.first);
+        auto it = relations.find(col.first);
         if(it != relations.end()) {
-            if (row.second == "TEXT") {
+            if (col.second == "TEXT") {
                 sql.reserve(sql.size() + it->second.size());
                 for (const char& c : it->second) {
                     if (c == '\"') {
@@ -232,11 +232,11 @@ bool uva::database::sqlite3_connection::insert(table* table, size_t id, const st
         
     for (const auto& relation : relations) {
         sql += "(" + std::to_string(id++);
-        for (const auto& row : table->m_rows) {
+        for (const auto& col : table->m_columns) {
             sql += ", \"";
-            auto it = relation.find(row.first);
+            auto it = relation.find(col.first);
             if (it != relation.end()) {
-                if (row.second == "TEXT") {
+                if (col.second == "TEXT") {
                     sql.reserve(sql.size() + it->second.size());
                     for (const char& c : it->second) {
                         if (c == '\"') {
@@ -298,7 +298,7 @@ void uva::database::sqlite3_connection::add_column(uva::database::table* table, 
 {
     std::string cols_definitions = "ID INT PRIMARY KEY NOT NULL";
 
-    for (const auto& row : table->m_rows)
+    for (const auto& row : table->m_columns)
     {
         cols_definitions += ", " + row.first + " " + row.second;
     }
@@ -318,9 +318,11 @@ void uva::database::sqlite3_connection::change_column(uva::database::table* tabl
 {
     std::string cols_definitions = "ID INT PRIMARY KEY NOT NULL";
 
-    table->m_rows[name] = type;
+    auto it = table->find_column(name);
 
-    for (const auto& row : table->m_rows)
+    it->second = type;
+
+    for (const auto& row : table->m_columns)
     {
         cols_definitions += ", " + row.first + " " + row.second;
     }    
@@ -361,7 +363,10 @@ uva::database::value::operator std::string &() {
 }
 
 uva::database::value::operator size_t() {
-    if (m_table->m_rows[m_key] == "INTEGER") {
+
+    auto it = m_table->find_column(m_key);
+
+    if (it->second == "INTEGER") {
         bool valid = true;
         for (size_t i = 0; i < m_value.size(); ++i) {
             if (!isdigit(m_value[i])) {
@@ -417,9 +422,11 @@ bool uva::database::value::operator!=(const std::string& other) {
     return m_value != other;
 }
 bool uva::database::value::operator== (const bool& other) {
-    if (m_table->m_rows[m_key] == "INTEGER") {
+    auto it = m_table->find_column(m_key);
+
+    if (it->second == "INTEGER") {
         uint64_t value = (uint64_t)*this;
-        value == other;
+        return value == other;
     }
     else {
         throw std::bad_cast();
@@ -459,10 +466,10 @@ void uva::database::table::change_column(const std::string& name, const std::str
 //TABLE
 
 uva::database::table::table(const std::string& name,
-    const std::map<std::string, std::string>& rows,
+    const std::vector<std::pair<std::string, std::string>>& columns,
     basic_connection* connection)
 
-    : m_connection(connection), m_rows(rows), m_name(name)
+    : m_connection(connection), m_columns(columns), m_name(name)
 {
     get_tables().insert({name, this});
     m_connection->create_table(this);
@@ -522,7 +529,7 @@ void uva::database::table::create(std::vector<std::map<std::string, std::string>
 
 size_t uva::database::table::create() {
     std::map<std::string, std::string> empty_relations;
-    for (const auto& row : m_rows) {
+    for (const auto& row : m_columns) {
         empty_relations.insert({ row.first, { "" } });
     }
     return create(empty_relations);
@@ -565,6 +572,22 @@ size_t uva::database::table::find_by(const std::map<std::string, std::string>& r
 size_t uva::database::table::first() {
     auto it = m_relations.begin();
     return it != m_relations.end() ? it->first : std::string::npos;
+}
+
+std::vector<std::pair<std::string, std::string>>::iterator uva::database::table::find_column(const std::string& col) {
+    auto it = std::find_if(m_columns.begin(), m_columns.end(), [&col](const std::pair<std::string, std::string>& pair) { return pair.first == col; });
+    if (it == m_columns.end()) {        
+        throw std::out_of_range("There is no column named '" + col + "' in table '" + m_name + "'");
+    }
+    return it;
+}
+
+std::vector<std::pair<std::string, std::string>>::const_iterator uva::database::table::find_column(const std::string& col) const {
+    auto it = std::find_if(m_columns.begin(), m_columns.end(), [&col](const std::pair<std::string, std::string>& pair) { return pair.first == col; });
+    if (it == m_columns.end()) {
+        throw std::out_of_range("There is no column named '" + col + "' in table '" + m_name + "'");
+    }
+    return it;
 }
 
 uva::database::active_record_collection uva::database::table::where(const std::map<std::string, std::string>& relations)

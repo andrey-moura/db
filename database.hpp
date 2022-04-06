@@ -41,8 +41,8 @@ public:\
     static uva::database::active_record_reverse_iterator<record> rbegin() { return uva::database::active_record_reverse_iterator<record>(table()->m_relations.rbegin()); } \
 	static uva::database::active_record_reverse_iterator<record> rend() { return uva::database::active_record_reverse_iterator<record>(table()->m_relations.rend()); } \
     static size_t count() { return table()->m_relations.size(); } \
-    static size_t column_count() { return table()->m_rows.size(); } \
-    static std::map<std::string, std::string>& columns() { return table()->m_rows; } \
+    static size_t column_count() { return table()->m_columns.size(); } \
+    static std::vector<std::pair<std::string, std::string>>& columns() { return table()->m_columns; } \
     static size_t first() { return table()->first(); } \
 
     //std::string& operator[](const std::string& str) { return m_table[str]; }
@@ -165,12 +165,12 @@ namespace uva
         {
         public:
             table(const std::string& name,
-                const std::map<std::string, std::string>& rows,
+                const std::vector<std::pair<std::string, std::string>>& columns,
                 basic_connection* connection);
 
             std::string m_name;
             basic_connection* m_connection;
-            std::map<std::string, std::string> m_rows;
+            std::vector<std::pair<std::string, std::string>> m_columns;
             std::map<size_t, std::map<std::string, std::string>> m_relations;
             size_t create();
             size_t create(const std::map<std::string, std::string>& relations);
@@ -187,6 +187,8 @@ namespace uva
             std::string& at(size_t id, const std::string& key);
             void add_column(const std::string& name, const std::string& type, const std::string& default_value);
             void change_column(const std::string& name, const std::string& type);
+            std::vector<std::pair<std::string, std::string>>::const_iterator find_column(const std::string& col) const;
+            std::vector<std::pair<std::string, std::string>>::iterator find_column(const std::string& col);
         };
         
         class basic_active_record
