@@ -121,14 +121,19 @@ namespace uva
 
         class active_record_collection
         {
+        public:
+            active_record_collection() = default;
+            active_record_collection(const active_record_collection& collection);
         private:
             std::vector<size_t> m_matches;
         public:            
+            table* m_table;
             auto begin() { return m_matches.begin(); }
             auto end() { return m_matches.end(); }
             size_t size() { return m_matches.size(); }
             bool empty() { return !m_matches.size(); }
             void reserve(size_t len) { m_matches.reserve(len); }
+            active_record_collection where(const std::map<std::string, std::string>& columns);
         public:
             active_record_collection& operator<<(size_t r);
             size_t operator[](const size_t& i) { return m_matches[i]; }
