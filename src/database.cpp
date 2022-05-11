@@ -382,7 +382,7 @@ uva::database::value::operator size_t() {
 
         if (valid) {
             //throws exception
-            return std::stoi(m_value);
+            return std::stoll(m_value);
         }
 
         if (m_value == "TRUE") {
