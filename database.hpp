@@ -156,7 +156,7 @@ namespace uva
             friend std::string operator+(const std::string& other, uva::database::value& value);
             friend std::ostream& operator<<(std::ostream& out, uva::database::value& value)
             {
-                out << value.operator std::string & ();
+                out << (std::string)value;
                 return out;
             }
             value& operator=(const std::string& other);
