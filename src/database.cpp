@@ -382,7 +382,7 @@ uva::database::value::operator size_t() {
 
         if (valid) {
             //throws exception
-            return std::stoi(m_value);
+            return std::stoll(m_value);
         }
 
         if (m_value == "TRUE") {
@@ -592,7 +592,8 @@ std::vector<std::pair<std::string, std::string>>::const_iterator uva::database::
 
 uva::database::active_record_collection uva::database::table::where(const std::map<std::string, std::string>& relations)
 {
-    active_record_collection collection;
+    active_record_collection collection;    
+    collection.m_table = this;
     for (const auto& record : m_relations) {
         for (const auto& relation : relations) {
             auto it = record.second.find(relation.first);
@@ -605,7 +606,7 @@ uva::database::active_record_collection uva::database::table::where(const std::m
         }
     }
 
-    return active_record_collection();
+    return collection;
 }
 
 void uva::database::table::update(size_t id, const std::string& key, const std::string& value) {
@@ -704,6 +705,33 @@ uva::database::value uva::database::basic_active_record::operator[](size_t index
 //END MIGRATION
 
 //ACTIVE RECORD COLLECTION
+
+uva::database::active_record_collection::active_record_collection(const uva::database::active_record_collection& collection)
+    : m_matches(collection.m_matches), m_table(collection.m_table)
+{
+
+}
+
+
+uva::database::active_record_collection uva::database::active_record_collection::where(const std::map<std::string, std::string>& columns)
+{
+    active_record_collection collection;
+    collection.m_table = m_table;
+
+    for (const auto& id : m_matches) {
+        auto& record = m_table->m_relations[id];
+
+        for (const auto& column : columns) {
+
+            if (record[column.first] == column.second) {
+                collection << id;
+                break;
+            }
+        }
+    }
+
+    return collection;
+}
 
 uva::database::active_record_collection& uva::database::active_record_collection::operator<<(size_t r)
 {
