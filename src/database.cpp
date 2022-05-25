@@ -118,10 +118,10 @@ void uva::database::sqlite3_connection::read_table(table* table)
         }
 
         indexCol.push_back(name);        
-        indexText.push_back(type == "INTEGER");
+        indexText.push_back(type != "INTEGER");
 
         //Skip ID column
-        if (colIndex) table->m_columns.push_back({ name, "INTEGER" });
+        if (colIndex) table->m_columns.push_back({ name, type });
     }
       
     while (sqlite3_step(stmt) == SQLITE_ROW) {
