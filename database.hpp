@@ -44,6 +44,7 @@ public:\
     static size_t column_count() { return table()->m_columns.size(); } \
     static std::vector<std::pair<std::string, std::string>>& columns() { return table()->m_columns; } \
     static size_t first() { return table()->first(); } \
+    static size_t last() { return last()->last(); } \
 
     //std::string& operator[](const std::string& str) { return m_table[str]; }
     // #define uva_database_define(record, params) \
@@ -183,6 +184,7 @@ namespace uva
             size_t find(size_t id) const;
             size_t find_by(const std::map<std::string, std::string>& relations);
             size_t first();
+            size_t last();
             void destroy(size_t id);
             bool relation_exists(size_t id) const;
             void update(size_t id, const std::string& key, const std::string& value);

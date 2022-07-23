@@ -574,6 +574,11 @@ size_t uva::database::table::first() {
     return it != m_relations.end() ? it->first : std::string::npos;
 }
 
+size_t uva::database::table::last() {
+    auto it = m_relations.rbegin();
+    return it != m_relations.rend() ? it->first : std::string::npos;
+}
+
 std::vector<std::pair<std::string, std::string>>::iterator uva::database::table::find_column(const std::string& col) {
     auto it = std::find_if(m_columns.begin(), m_columns.end(), [&col](const std::pair<std::string, std::string>& pair) { return pair.first == col; });
     if (it == m_columns.end()) {        
