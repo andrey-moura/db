@@ -12,17 +12,6 @@
 
 #define uva_database_params(...) __VA_ARGS__ 
 
-// #define uva_database_declare(record) \
-// public:\    
-//     static table s_table; \
-//     static basic_connection* s_connection;\
-//     virtual table* get_table() override {\
-//        return s_table; \
-//     }\
-//     virtual basic_connection* get_connection() {\
-// \
-//     }
-
 #define uva_database_declare(record) \
 public:\
     record() : uva::database::basic_active_record(std::string::npos) { } \
@@ -33,23 +22,9 @@ public:\
     static size_t create() { return table()->create(); } \
     static size_t create(const std::map<std::string, std::string>& relations) { return table()->create(relations); } \
     static void create(std::vector<std::map<std::string, std::string>>& relations) { table()->create(relations); } \
-    static size_t find(size_t id) { return table()->find(id); }  \
-    static size_t find_by(const std::map<std::string,std::string>& relations) { return table()->find_by(relations); } \
-    static uva::database::active_record_collection where(const std::map<std::string,std::string>& relations) { return table()->where(relations); } \
-    static uva::database::active_record_iterator<record> begin() { return uva::database::active_record_iterator<record>(table()->m_relations.begin()); } \
-	static uva::database::active_record_iterator<record> end() { return uva::database::active_record_iterator<record>(table()->m_relations.end()); } \
-    static uva::database::active_record_reverse_iterator<record> rbegin() { return uva::database::active_record_reverse_iterator<record>(table()->m_relations.rbegin()); } \
-	static uva::database::active_record_reverse_iterator<record> rend() { return uva::database::active_record_reverse_iterator<record>(table()->m_relations.rend()); } \
     static size_t count() { return table()->m_relations.size(); } \
     static size_t column_count() { return table()->m_columns.size(); } \
     static std::vector<std::pair<std::string, std::string>>& columns() { return table()->m_columns; } \
-    static size_t first() { return table()->first(); } \
-    static size_t last() { return last()->last(); } \
-
-    //std::string& operator[](const std::string& str) { return m_table[str]; }
-    // #define uva_database_define(record, params) \
-     //std::map<std::string, std::string> record::s_table = params; 
-     //bool record::s_initialized = false;
 
 #define uva_database_define_sqlite3(record, rows, db) \
 uva::database::table* record::table() { \
@@ -72,9 +47,7 @@ namespace uva
     namespace database
     {        
         class table;
-        class relation;
         class basic_active_record;
-        class basic_active_record_collections;
 
         class basic_connection
         {                    
@@ -120,24 +93,28 @@ namespace uva
                 virtual void change_column(uva::database::table* table, const std::string& name, const std::string& type) override;
         };
 
-        class active_record_collection
+        using result = std::map<size_t, std::map<std::string, std::string>>;
+
+        class active_record_relation
         {
         public:
-            active_record_collection() = default;
-            active_record_collection(const active_record_collection& collection);
+            active_record_relation() = default;
+            active_record_relation(uva::database::table* table);
         private:
-            std::vector<size_t> m_matches;
-        public:            
-            table* m_table;
-            auto begin() { return m_matches.begin(); }
-            auto end() { return m_matches.end(); }
-            size_t size() { return m_matches.size(); }
-            bool empty() { return !m_matches.size(); }
-            void reserve(size_t len) { m_matches.reserve(len); }
-            active_record_collection where(const std::map<std::string, std::string>& columns);
+            std::string m_select;
+            std::string m_from;
+            std::string m_where;
         public:
-            active_record_collection& operator<<(size_t r);
-            size_t operator[](const size_t& i) { return m_matches[i]; }
+            const std::string& to_sql() const;
+        public:
+            active_record_relation& where(const std::string& where);
+            active_record_relation& from(const std::string& from);
+            active_record_relation& select(const std::string& select);
+            size_t* count(const std::string& count);
+        private:
+            table* m_table;
+            result m_results;
+        public:
         };
 
         class value 
@@ -188,7 +165,6 @@ namespace uva
             void destroy(size_t id);
             bool relation_exists(size_t id) const;
             void update(size_t id, const std::string& key, const std::string& value);
-            active_record_collection where(const std::map<std::string, std::string>& relations);
             static std::map<std::string, table*>& get_tables();
             static table* get_table(const std::string& name);
             std::string& at(size_t id, const std::string& key);
@@ -304,73 +280,6 @@ namespace uva
             void change_column(const std::string& name, const std::string& type) const
             {
                 Record::table()->change_column(name, type);
-            }
-        };
-        template<typename record>
-        class active_record_iterator
-        {
-        private:
-            std::map<size_t, std::map<std::string, std::string>>::iterator m_iterator;
-        public:
-            active_record_iterator(const std::map<size_t, std::map<std::string, std::string>>::iterator& it)
-                : m_iterator(it) {        
-            }
-        public:
-            void advance(int n) {
-                std::advance(m_iterator, n);
-            }
-        public:
-            active_record_iterator<record>& operator++() {
-                m_iterator++;
-                return *this;
-            }            
-            record operator*() {
-                return record(m_iterator->first);
-            }
-            active_record_iterator<record> operator+(const size_t& i) {
-                auto it = m_iterator;
-                std::advance(it, i);
-                return active_record_iterator(it);
-            }
-            bool operator!=(const active_record_iterator<record>& other) {
-                return m_iterator != other.m_iterator;
-            }
-            bool operator==(const active_record_iterator<record>& other) {
-                return m_iterator == other.m_iterator;
-            }
-        };
-        template<typename record>
-        class active_record_reverse_iterator
-        {
-        private:
-            std::map<size_t, std::map<std::string, std::string>>::reverse_iterator m_iterator;
-        public:
-            active_record_reverse_iterator(const std::map<size_t, std::map<std::string, std::string>>::reverse_iterator& it)
-                : m_iterator(it) {
-
-            }  
-        public:
-            void advance(int n) {
-                std::advance(m_iterator, n);
-            }
-        public:
-            active_record_reverse_iterator<record>& operator++() {
-                m_iterator++;
-                return *this;
-            }
-            active_record_reverse_iterator<record> operator+(const size_t& i) {
-                auto it = m_iterator;
-                std::advance(it, i);
-                return active_record_reverse_iterator(it);
-            }
-            record operator*() {
-                return record(m_iterator->first);
-            }
-            bool operator!=(const active_record_reverse_iterator<record>& other) {
-                return m_iterator != other.m_iterator;
-            }
-            bool operator==(const active_record_reverse_iterator<record>& other) {
-                return m_iterator == other.m_iterator;
             }
         };
     };

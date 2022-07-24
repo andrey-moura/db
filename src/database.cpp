@@ -101,7 +101,7 @@ void uva::database::sqlite3_connection::read_table(table* table)
     std::string sql = "SELECT * FROM " + table->m_name + ";";
     sqlite3_stmt* stmt;
 
-    int error = sqlite3_prepare_v2(m_database, sql.c_str(), sql.size(), &stmt, nullptr);
+    int error = sqlite3_prepare_v2(m_database, sql.c_str(), (int)sql.size(), &stmt, nullptr);
 
     size_t colCount = sqlite3_column_count(stmt);
 
@@ -426,7 +426,7 @@ bool uva::database::value::operator== (const bool& other) {
 
     if (it->second == "INTEGER") {
         uint64_t value = (uint64_t)*this;
-        return value == other;
+        return (bool)value == other;
     }
     else {
         throw std::bad_cast();
@@ -595,25 +595,6 @@ std::vector<std::pair<std::string, std::string>>::const_iterator uva::database::
     return it;
 }
 
-uva::database::active_record_collection uva::database::table::where(const std::map<std::string, std::string>& relations)
-{
-    active_record_collection collection;    
-    collection.m_table = this;
-    for (const auto& record : m_relations) {
-        for (const auto& relation : relations) {
-            auto it = record.second.find(relation.first);
-            if (it == record.second.end()) {
-                throw std::out_of_range("There is no column named " + relation.first + " in the table " + m_name);
-            }
-            if (it->second == relation.second) {
-                collection << record.first;
-            }
-        }
-    }
-
-    return collection;
-}
-
 void uva::database::table::update(size_t id, const std::string& key, const std::string& value) {
     m_connection->update(id, key, value, this);
 }
@@ -709,39 +690,35 @@ uva::database::value uva::database::basic_active_record::operator[](size_t index
 
 //END MIGRATION
 
-//ACTIVE RECORD COLLECTION
+//ACTIVE RECORD RELATION
 
-uva::database::active_record_collection::active_record_collection(const uva::database::active_record_collection& collection)
-    : m_matches(collection.m_matches), m_table(collection.m_table)
+uva::database::active_record_relation::active_record_relation(uva::database::table* table)
+    : m_table(table)
 {
-
+    from(table->m_name);
 }
 
-
-uva::database::active_record_collection uva::database::active_record_collection::where(const std::map<std::string, std::string>& columns)
+uva::database::active_record_relation& uva::database::active_record_relation::where(const std::string& where)
 {
-    active_record_collection collection;
-    collection.m_table = m_table;
+    m_where = where;
 
-    for (const auto& id : m_matches) {
-        auto& record = m_table->m_relations[id];
-
-        for (const auto& column : columns) {
-
-            if (record[column.first] == column.second) {
-                collection << id;
-                break;
-            }
-        }
-    }
-
-    return collection;
-}
-
-uva::database::active_record_collection& uva::database::active_record_collection::operator<<(size_t r)
-{
-    m_matches.push_back(r);
     return *this;
 }
 
-//ACTIVE RECORD COLLECTION
+uva::database::active_record_relation& uva::database::active_record_relation::from(const std::string& from)
+{
+    m_from = from;
+
+    return *this;
+}
+
+uva::database::active_record_relation& uva::database::active_record_relation::select(const std::string& select)
+{
+    m_select = select;
+
+    return *this;
+}
+
+
+
+//ACTIVE RECORD RELATION
