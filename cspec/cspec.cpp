@@ -1,11 +1,24 @@
 #include <cspec.hpp>
+#include <database.hpp>
 
-cpsec_configure()
+class Album : public uva::database::basic_active_record
+{
+    uva_database_declare(Album);
+};
 
-cspec_describe("Create new table",
+CSPEC_FOLDER
 
-    it("should create a new table", [](){
-        return false;
+uva_database_define_sqlite3(Album,
+{
+
+}, "")
+
+cspec_describe("Connecting to a table",
+
+    it("to_sql should match", [](){
+        
     })
 
 );
+
+cpsec_configure()
