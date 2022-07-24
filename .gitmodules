@@ -1,9 +1,3 @@
 [submodule "include/uva/cspec"]
 	path = include/uva/cspec
 	url = https://github.com/Moonslate/cspec
-[submodule "include/uva/console"]
-	path = include/uva/console
-	url = https://github.com/Moonslate/console
-[submodule "include/uva/diagnostics"]
-	path = include/uva/diagnostics
-	url = https://github.com/Moonslate/diagnostics
