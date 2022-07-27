@@ -1,6 +1,5 @@
 #pragma once
 
-#include "sqlite3.h"
 #include <string>
 #include <filesystem>
 #include <map>
@@ -9,6 +8,11 @@
 #include <vector>
 #include <iterator>
 #include <functional>
+
+#include "sqlite3.h"
+
+#include <console.hpp>
+#include <diagnostics.hpp>
 
 #define uva_database_params(...) __VA_ARGS__ 
 
@@ -22,17 +26,23 @@ public:\
     static size_t create() { return table()->create(); } \
     static size_t create(const std::map<std::string, std::string>& relations) { return table()->create(relations); } \
     static void create(std::vector<std::map<std::string, std::string>>& relations) { table()->create(relations); } \
-    static size_t count() { return table()->m_relations.size(); } \
     static size_t column_count() { return table()->m_columns.size(); } \
     static std::vector<std::pair<std::string, std::string>>& columns() { return table()->m_columns; } \
+    static uva::database::active_record_relation all() { return uva::database::active_record_relation(table()).select("*").from(table()->m_name).where("removed=0");  } \
+    static uva::database::active_record_relation where(const std::string& where) { return record::all().where(where); } \
+    static uva::database::active_record_relation from(const std::string& from) { return record::all().from(from); } \
+    static uva::database::active_record_relation select(const std::string& select) { return record::all().select(select); } \
+    static size_t count(const std::string& count = "*") { return record::all().count(); } \
 
 #define uva_database_define_sqlite3(record, rows, db) \
 uva::database::table* record::table() { \
 \
     uva::database::sqlite3_connection* connection = uva::database::sqlite3_connection::connect(db);\
+    std::string table_name = #record;\
+    for(char& c : table_name) { if(isalpha(c)) { c = tolower(c); } }\
 \
-    static uva::database::table* table = new uva::database::table(std::string(#record) + "s", rows, connection); \
-    static uva::database::table* infotable = new uva::database::table(std::string(#record) + "s" + "TableMigrations", { \
+    static uva::database::table* table = new uva::database::table(table_name + "s", rows, connection); \
+    static uva::database::table* infotable = new uva::database::table(table_name + "s" + "_table_migrations", { \
         { "title", "TEXT" },\
         { "summary", "TEXT" },\
         { "date", "INTEGER" }\
@@ -78,6 +88,7 @@ namespace uva
                 sqlite3 *m_database = nullptr;
                 std::filesystem::path m_database_path;
             public:
+                sqlite3* get_database() const { return m_database; }
                 static sqlite3_connection* connect(const std::filesystem::path& database);
                 virtual bool open() override;
                 virtual bool is_open() const override;
@@ -92,28 +103,70 @@ namespace uva
                 virtual void add_column(uva::database::table* table, const std::string& name, const std::string& type, const std::string& default_value) override;
                 virtual void change_column(uva::database::table* table, const std::string& name, const std::string& type) override;
         };
+ 
+        using result = std::vector<std::pair<std::string, std::string>>;
+        using results = std::vector<std::vector<std::pair<std::string, std::string>>>;
 
-        using result = std::map<size_t, std::map<std::string, std::string>>;
+        struct multiple_value_holder
+        {
+            enum class value_type {
+                string,
+                integer
+            };
+
+            value_type type;
+
+            std::string str;
+            int64_t integer;
+        public:
+            operator size_t()
+            {
+                return (size_t)integer;
+            }
+            multiple_value_holder& operator=(const char* c)
+            {
+                str = c;
+                return *this;
+            }
+            multiple_value_holder& operator=(const unsigned char* c)
+            {
+                str = (const char*)c;
+                return *this;
+            }
+            multiple_value_holder& operator=(const size_t& s)
+            {
+                integer = (int64_t)s;
+                return *this;
+            }
+        };
 
         class active_record_relation
         {
         public:
             active_record_relation() = default;
-            active_record_relation(uva::database::table* table);
+            active_record_relation(table* table);
         private:
             std::string m_select;
             std::string m_from;
             std::string m_where;
-        public:
-            const std::string& to_sql() const;
-        public:
-            active_record_relation& where(const std::string& where);
-            active_record_relation& from(const std::string& from);
-            active_record_relation& select(const std::string& select);
-            size_t* count(const std::string& count);
-        private:
             table* m_table;
-            result m_results;
+
+            std::map<std::string, size_t> m_columnsIndexes;
+            std::vector<std::string> m_columnsNames;
+            std::vector<multiple_value_holder::value_type> m_columnsTypes;
+
+            std::vector<std::vector<multiple_value_holder>> m_results;
+        public:
+            std::string to_sql() const;
+        public:
+            active_record_relation& select(const std::string& select);
+            active_record_relation& from(const std::string& from);
+            active_record_relation& where(const std::string& where);
+            size_t count(const std::string& count = "*");
+        private:
+            std::string commit_sql() const;
+            void commit();
+            void commit(const std::string& sql);
         public:
         };
 

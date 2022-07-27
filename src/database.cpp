@@ -695,12 +695,12 @@ uva::database::value uva::database::basic_active_record::operator[](size_t index
 uva::database::active_record_relation::active_record_relation(uva::database::table* table)
     : m_table(table)
 {
-    from(table->m_name);
+    
 }
 
-uva::database::active_record_relation& uva::database::active_record_relation::where(const std::string& where)
+uva::database::active_record_relation& uva::database::active_record_relation::select(const std::string& select)
 {
-    m_where = where;
+    m_select = select;
 
     return *this;
 }
@@ -712,13 +712,187 @@ uva::database::active_record_relation& uva::database::active_record_relation::fr
     return *this;
 }
 
-uva::database::active_record_relation& uva::database::active_record_relation::select(const std::string& select)
+uva::database::active_record_relation& uva::database::active_record_relation::where(const std::string& where)
 {
-    m_select = select;
+    m_where = where;
 
     return *this;
 }
 
+size_t uva::database::active_record_relation::count(const std::string& count)
+{
+    m_select = "COUNT(" + count + ")";
 
+    commit();
+
+    try {
+        auto first_row = m_results.begin();
+
+        if(first_row == m_results.end()) {
+            return 0;
+        }
+
+        auto first_col = first_row->begin();
+
+        if(first_col == first_row->end()) {
+            return 0;
+        }
+
+        return *first_col;
+
+    } catch(std::exception& e) {
+
+    }
+
+    return 0;
+}
+
+std::string uva::database::active_record_relation::commit_sql() const
+{
+    std::string sql = "";
+
+    if(m_select.size()) {
+        sql += "SELECT " + m_select;
+    }
+
+    if(m_from.size()) {
+        sql += " FROM " + m_from;
+    }
+
+    if(m_where.size()) {
+        sql += " WHERE " + m_where;
+    }
+
+    sql += ";";
+
+    return sql;
+}
+
+void uva::database::active_record_relation::commit()
+{
+    std::string sql = commit_sql();
+
+    commit(sql);
+}
+
+std::string uva::database::active_record_relation::to_sql() const
+{
+    std::string sql = commit_sql();
+
+    return sql;
+}
+
+void uva::database::active_record_relation::commit(const std::string& sql)
+{
+    m_columnsNames.clear();
+    m_columnsIndexes.clear();
+    m_columnsTypes.clear();
+
+    auto elapsed = uva::diagnostics::measure_function([this,&sql] {
+
+        sqlite3_stmt* stmt;
+
+        sqlite3_connection* connection = (sqlite3_connection*)m_table->m_connection;
+
+        int error = sqlite3_prepare_v2(connection->get_database(), sql.c_str(), (int)sql.size(), &stmt, nullptr);
+
+        const char* error_msg = nullptr;
+
+        if(error) {
+            error_msg = sqlite3_errmsg(connection->get_database());
+        }
+
+        if(error) {
+            std::string error_report = error_msg;
+            sqlite3_free((void*)(char*)error_msg);
+
+            throw std::runtime_error("ActiveRecord: Failed to prepare sql: " + error_report +  "... " + sql);
+            return;
+        }
+
+        size_t colCount = sqlite3_column_count(stmt);
+
+        for (int colIndex = 0; colIndex < colCount; colIndex++) {        
+
+            std::string name = sqlite3_column_name(stmt, colIndex);
+            const char* t = sqlite3_column_decltype(stmt, colIndex);
+
+            if(!t) {
+                if(name.starts_with("COUNT")) {
+                    t = "INTEGER";
+                }
+            }
+
+            std::string type = t ? t : "TEXT";
+
+            m_columnsNames.push_back(name);
+            m_columnsIndexes.insert({name, colIndex});
+
+            uva::database::multiple_value_holder::value_type value_type;
+
+            if(type == "TEXT")  {
+                value_type = uva::database::multiple_value_holder::value_type::string;
+            } else {
+                value_type = uva::database::multiple_value_holder::value_type::integer;
+            }
+
+            m_columnsTypes.push_back(value_type);
+        }
+
+        while (sqlite3_step(stmt) == SQLITE_ROW) {
+            auto current_col = m_columnsTypes.begin();
+            std::vector<uva::database::multiple_value_holder> cols;
+
+            for (int colIndex = 0; colIndex < colCount; colIndex++) {
+
+                uva::database::multiple_value_holder holder;
+                holder.type = *current_col;
+
+                switch (*current_col)
+                {
+
+                    case uva::database::multiple_value_holder::value_type::string: {
+                        const unsigned char* value = sqlite3_column_text(stmt, colIndex);
+                        holder = value;
+                    }
+                    break;
+                    case uva::database::multiple_value_holder::value_type::integer: {
+                        int64_t value = sqlite3_column_int64(stmt, colIndex);
+                        holder = value;
+                    }
+                    break;
+                }
+
+                cols.emplace_back(holder);
+
+                current_col++;
+            }
+
+            m_results.emplace_back(cols);
+        }
+
+        //  Step, Clear and Reset the statement after each bind.
+        error = sqlite3_step(stmt);
+        error = sqlite3_clear_bindings(stmt);
+        error = sqlite3_reset(stmt);    
+
+        if (error) {        
+            //throw std::runtime_error(sqlite3_errmsg(m_database));
+        }
+
+        sqlite3_finalize(stmt);
+
+        if (error) {
+            //std::string error_report = error_msg;
+            //sqlite3_free(error_msg);
+            //throw std::runtime_error(""/*error_report*/);
+        }    
+    });
+
+    std::stringstream ss;
+    ss << "(" << std::chrono::duration_cast<std::chrono::milliseconds>(elapsed).count() << "ms) " << sql << std::endl << std::endl;
+
+    std::cout << uva::console::color(uva::console::color_code::green) << ss.str() << std::endl;
+}
 
 //ACTIVE RECORD RELATION
