@@ -71,7 +71,7 @@ bool uva::database::sqlite3_connection::create_table(const uva::database::table*
             sql += ", " + col.first + " " + col.second;
         }
 
-        sql += ", updated_at INTEGER, created_at INTEGER, removed INTEGER";
+        sql += ", updated_at INTEGER DEFAULT (STRFTIME('%s')), created_at INTEGER DEFAULT (STRFTIME('%s')), removed INTEGER DEFAULT 0";
 
         sql += ");";
 
@@ -557,6 +557,11 @@ bool uva::database::multiple_value_holder::operator==(const std::string& s) cons
     return str == s;
 }
 
+bool uva::database::multiple_value_holder::operator==(const bool& b) const
+{
+    return b == (bool)integer;
+}
+
 //END MULTIPLE_VALUE_HOLDER
 
 std::string& uva::database::table::at(size_t id, const std::string& key) {
@@ -645,14 +650,6 @@ uva::database::table* uva::database::table::get_table(const std::string& name) {
 size_t uva::database::table::create(const std::map<std::string, uva::database::multiple_value_holder>& relations)
 {
     auto keys_values = uva::string::split(relations);
-
-    keys_values.first.push_back("created_at");
-    keys_values.first.push_back("updated_at");
-    keys_values.first.push_back("removed");
-
-    keys_values.second.push_back(time(nullptr));
-    keys_values.second.push_back(time(nullptr));
-    keys_values.second.push_back(false);
 
     auto relation = uva::database::active_record_relation(this).insert(keys_values.second).columns(keys_values.first).into(m_name).returning("id").unscoped();
     relation.commit_without_prepare(relation.to_sql());
@@ -886,31 +883,96 @@ uva::database::active_record_relation& uva::database::active_record_relation::li
     return *this;
 }
 
-
-uva::database::active_record_relation& uva::database::active_record_relation::insert(const std::vector<uva::database::multiple_value_holder>& insert)
+uva::database::active_record_relation& uva::database::active_record_relation::insert(std::vector<uva::database::multiple_value_holder>& insert)
 {
-    m_insert = insert;
-    for(auto& holder : m_insert) {
+    for(auto& holder : insert) {
         if(holder.type == uva::database::multiple_value_holder::value_type::string) {
-            holder.str = "'"+holder.str+"'";
+            std::string str;
+            str.reserve(holder.str.size()+2);
+            str.push_back('\'');
+
+            for(const char& c : holder.str)
+            {
+                str.push_back(c);
+                if(c == '\'') {
+                    str.push_back('\'');
+                }
+            }
+
+
+            str.push_back('\'');
+            holder.str = str;
         }
     }
+
+    m_insert.push_back(insert);
+
     return *this;
 }
+
+uva::database::active_record_relation& uva::database::active_record_relation::insert(std::vector<std::vector<uva::database::multiple_value_holder>>& _insert)
+{
+    m_insert.reserve(_insert.size());
+
+    for(auto& values : _insert)
+    {
+        insert(values);
+    }
+
+    return *this;
+}
+
 uva::database::active_record_relation& uva::database::active_record_relation::columns(const std::vector<std::string>& columns)
 {
     m_columns = columns;
     return *this;
 }
+
 uva::database::active_record_relation& uva::database::active_record_relation::into(const std::string& into)
 {
     m_into = into;
     return *this;
 }
+
 uva::database::active_record_relation& uva::database::active_record_relation::returning(const std::string& returning)
 {
     m_returning = returning;
     return *this;
+}
+
+std::vector<uva::database::multiple_value_holder> uva::database::active_record_relation::pluck(const std::string& col)
+{
+    std::vector<uva::database::multiple_value_holder> values;
+
+    uva::database::active_record_relation rel = *this;
+
+    rel.select(col);
+
+    rel.commit();
+
+    values.reserve(rel.m_results.size());
+
+    for(const auto& value : rel.m_results)
+    {
+        if(value.size()) {
+            values.push_back(value[0]);
+        }
+    }
+
+    return values;
+}
+
+std::vector<std::vector<uva::database::multiple_value_holder>> uva::database::active_record_relation::pluckm(const std::string& cols)
+{
+    std::vector<std::vector<uva::database::multiple_value_holder>> values;
+
+    uva::database::active_record_relation rel = *this;
+
+    rel.select(cols);
+
+    rel.commit();
+
+    return rel.m_results;
 }
 
 size_t uva::database::active_record_relation::count(const std::string& count) const
@@ -969,7 +1031,7 @@ void uva::database::active_record_relation::each_with_index(std::function<void(s
         uva::database::active_record_relation copy = uva::database::active_record_relation(*this);
 
         if(index) {
-            copy.where("{} > {}", "id", last_id).first();
+            copy.where("{} > {}", m_order || "id", last_id).first();
         }
 
         auto first = copy.first();
@@ -977,7 +1039,7 @@ void uva::database::active_record_relation::each_with_index(std::function<void(s
         if(first.empty()) {
             return;
         } else {
-            last_id = first["id"];
+            last_id = first[m_order || "id"];
 
             func(first, index);
         }
@@ -1088,11 +1150,19 @@ std::string uva::database::active_record_relation::commit_sql() const
             sql += ")";
         }
 
-        sql += " VALUES (";
+        sql += " VALUES ";
+        for(size_t i = 0; i < m_insert.size(); ++i)
+        {
+            sql  += "(";
 
-        sql += uva::string::join(m_insert, ',');
+            sql += uva::string::join(m_insert[i], ',');
 
-        sql += ")";
+            sql += ")";
+
+            if(i < m_insert.size()-1) {
+                sql += ", ";
+            }
+        }
     }
 
     if(m_returning.size())
@@ -1178,7 +1248,7 @@ void uva::database::active_record_relation::commit_without_prepare(const std::st
         color_code = uva::console::color_code::red;
     }
 
-    std::string result = std::format("({}) {}", std::chrono::duration_cast<std::chrono::milliseconds>(elapsed), sql);
+    std::string result = std::format("({}) {}", std::chrono::duration_cast<std::chrono::milliseconds>(elapsed), sql.size() > 1000 ? sql.substr(0, 1000) : sql);
 
     std::cout << uva::console::color(color_code) << result << std::endl;
 
@@ -1310,7 +1380,7 @@ void uva::database::active_record_relation::commit(const std::string& sql)
         color_code = uva::console::color_code::red;
     }
 
-    std::string result = std::format("({}) {}", std::chrono::duration_cast<std::chrono::milliseconds>(elapsed), sql);
+    std::string result = std::format("({}) {}", std::chrono::duration_cast<std::chrono::milliseconds>(elapsed), sql.size() > 1000 ? sql.substr(0, 1000) : sql);
 
     std::cout << uva::console::color(color_code) << result << std::endl;
 

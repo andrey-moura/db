@@ -165,6 +165,7 @@ namespace uva
             multiple_value_holder& operator=(const multiple_value_holder& other);
             bool operator==(const double& d) const;
             bool operator==(const std::string& s) const;
+            bool operator==(const bool& b) const;
             template<typename T>
             bool operator<(const T& other) const
             {
@@ -194,7 +195,7 @@ namespace uva
             std::string m_where;
             std::string m_order;
             std::string m_limit;
-            std::vector<multiple_value_holder> m_insert;
+            std::vector<std::vector<multiple_value_holder>> m_insert;
             std::vector<std::string> m_columns;
             std::string m_into;
             std::string m_returning;
@@ -204,10 +205,10 @@ namespace uva
             std::vector<std::string> m_columnsNames;
             std::vector<multiple_value_holder::value_type> m_columnsTypes;
 
-            std::vector<std::vector<multiple_value_holder>> m_results;
 
             bool m_unscoped = false;
         public:
+            std::vector<std::vector<multiple_value_holder>> m_results;
             std::string to_sql() const;
         public:
             active_record_relation& update(const std::map<std::string, multiple_value_holder>& update);
@@ -223,10 +224,13 @@ namespace uva
             active_record_relation& order_by(const std::string& order);
             active_record_relation& limit(const std::string& limit);
             active_record_relation& limit(const size_t& limit);
-            active_record_relation& insert(const std::vector<uva::database::multiple_value_holder>& insert);
+            active_record_relation& insert(std::vector<uva::database::multiple_value_holder>& insert);
+            active_record_relation& insert(std::vector<std::vector<uva::database::multiple_value_holder>>& insert);
             active_record_relation& columns(const std::vector<std::string>& cols);
             active_record_relation& into(const std::string& into);
             active_record_relation& returning(const std::string& returning);
+            std::vector<multiple_value_holder> pluck(const std::string& col);
+            std::vector<std::vector<uva::database::multiple_value_holder>> pluckm(const std::string& cols);
             size_t count(const std::string& count = "*") const;
             std::map<std::string, multiple_value_holder> first();
             void each_with_index(std::function<void(std::map<std::string, multiple_value_holder>&, const size_t&)> func);

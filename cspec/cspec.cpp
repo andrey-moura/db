@@ -76,6 +76,45 @@ cspec_describe("uva::database",
            expect(created_product["price"]).to eq(price); 
         })
     )
+
+    context("selecting values", 
+
+        before_all_tests([](){
+
+            Product::create({
+                { "name", "Perfume" },
+                { "price", 1.8 },
+            });
+
+            Product::create({
+                { "name", "Book" },
+                { "price", 7.99 },
+            });
+
+            Product::create({
+                { "name", "Mobile Phone" },
+                { "price", 499 },
+            });
+
+            Product::create({
+                { "name", "Notebook" },
+                { "price", 1999 },
+            });
+
+            Product::create({
+                { "name", "Deer" },
+                { "price", 5 },
+            });
+        })
+
+        it("should pluck last 5 products.name", [](){
+            std::vector<uva::database::multiple_value_holder> values = Product::all().order_by("id desc").limit(5).pluck("name");
+
+            expect(values).to eq(std::vector<std::string>({
+                "Deer", "Notebook", "Mobile Phone", "Book", "Perfume"
+            }));
+        })
+    )
 );
 
 // cspec_describe("Reading values",
