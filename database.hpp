@@ -165,6 +165,7 @@ namespace uva
             multiple_value_holder& operator=(const multiple_value_holder& other);
             bool operator==(const double& d) const;
             bool operator==(const std::string& s) const;
+            bool operator!=(const std::string& s) const;
             bool operator==(const bool& b) const;
             template<typename T>
             bool operator<(const T& other) const
