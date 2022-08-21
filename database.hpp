@@ -9,7 +9,7 @@
 #include <iterator>
 #include <functional>
 #include <thread>
-
+#include <format>
 #include "sqlite3.h"
 
 #include <console.hpp>
@@ -34,7 +34,7 @@ public:\
     static size_t column_count() { return table()->m_columns.size(); } \
     static std::vector<std::pair<std::string, std::string>>& columns() { return table()->m_columns; } \
     static uva::database::active_record_relation all() { return uva::database::active_record_relation(table()).select("*").from(table()->m_name);  } \
-    template<class... Args> static uva::database::active_record_relation where(std::string where, Args const&... args) { return record::all().where(where, args...); }\
+    template<class... Args> static uva::database::active_record_relation where(const std::string where, Args const&... args) { return record::all().where(where, args...); }\
     static uva::database::active_record_relation from(const std::string& from) { return record::all().from(from); } \
     static uva::database::active_record_relation select(const std::string& select) { return record::all().select(select); } \
     static size_t count(const std::string& count = "*") { return record::all().count(); } \
@@ -215,9 +215,13 @@ namespace uva
             active_record_relation& select(const std::string& select);
             active_record_relation& from(const std::string& from);
             template<class... Args>
-            active_record_relation& where(std::string where, Args... args)
+            active_record_relation& where(const std::string where, Args... args)
             {
-                std::string __where = std::format(where, std::forward<Args>(args)...);
+                #ifdef USE_FMT_FORMT
+                    std::string __where = vformat(where, std::make_format_args(args...));
+                #else
+                    std::string __where = std::format(where, std::forward<Args>(args)...);
+                #endif
                 append_where(__where);
                 return *this;
             }
@@ -350,3 +354,29 @@ namespace uva
         };
     };
 };
+
+#ifdef USE_FMT_FORMT
+    template<>
+    struct std::formatter<uva::database::multiple_value_holder>
+    {
+        template<typename ParseContext>
+        constexpr auto parse(ParseContext& ctx);
+
+        template<typename FormatContext>
+        auto format(uva::database::multiple_value_holder const& v, FormatContext& ctx);
+
+    };
+
+    template<typename ParseContext>
+    constexpr auto std::formatter<uva::database::multiple_value_holder>::parse(ParseContext& ctx)
+    {
+        return ctx.begin();
+    }
+
+    template<typename FormatContext>
+    auto std::formatter<uva::database::multiple_value_holder>::format(uva::database::multiple_value_holder const& v, FormatContext& ctx)
+    {
+        return std::format_to(ctx.out(), "{}", v.to_s());
+    }
+
+#endif

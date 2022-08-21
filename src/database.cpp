@@ -97,7 +97,11 @@ bool uva::database::sqlite3_connection::create_table(const uva::database::table*
         color_code = uva::console::color_code::red;
     }
 
-    std::string result = std::format("({}) {}", std::chrono::duration_cast<std::chrono::milliseconds>(elapsed), sql);
+    #ifdef USE_FMT_FORMT
+        std::string result = std::format("({} ms) {}", std::chrono::duration_cast<std::chrono::milliseconds>(elapsed).count(), sql);
+    #else
+        std::string result = std::format("({}) {}", std::chrono::duration_cast<std::chrono::milliseconds>(elapsed), sql);
+    #endif
 
     std::cout << uva::console::color(color_code) << result << std::endl;
 
@@ -1248,7 +1252,11 @@ void uva::database::active_record_relation::commit_without_prepare(const std::st
         color_code = uva::console::color_code::red;
     }
 
-    std::string result = std::format("({}) {}", std::chrono::duration_cast<std::chrono::milliseconds>(elapsed), sql.size() > 1000 ? sql.substr(0, 1000) : sql);
+    #ifdef USE_FMT_FORMT
+        std::string result = std::format("({} ms) {}", std::chrono::duration_cast<std::chrono::milliseconds>(elapsed).count(), sql.size() > 1000 ? sql.substr(0, 1000) : sql);
+    #else
+        std::string result = std::format("({}) {}", std::chrono::duration_cast<std::chrono::milliseconds>(elapsed), sql.size() > 1000 ? sql.substr(0, 1000) : sql);
+    #endif
 
     std::cout << uva::console::color(color_code) << result << std::endl;
 
@@ -1380,7 +1388,11 @@ void uva::database::active_record_relation::commit(const std::string& sql)
         color_code = uva::console::color_code::red;
     }
 
-    std::string result = std::format("({}) {}", std::chrono::duration_cast<std::chrono::milliseconds>(elapsed), sql.size() > 1000 ? sql.substr(0, 1000) : sql);
+    #ifdef USE_FMT_FORMT
+        std::string result = std::format("({} ms) {}", std::chrono::duration_cast<std::chrono::milliseconds>(elapsed).count(), sql.size() > 1000 ? sql.substr(0, 1000) : sql);
+    #else
+        std::string result = std::format("({}) {}", std::chrono::duration_cast<std::chrono::milliseconds>(elapsed), sql.size() > 1000 ? sql.substr(0, 1000) : sql);
+    #endif
 
     std::cout << uva::console::color(color_code) << result << std::endl;
 
@@ -1445,7 +1457,11 @@ void uva::database::basic_migration::call_change()
             this->apply();
         });
 
-        std::cout << uva::console::color(uva::console::color_code::green) << std::format("{}: {}...", this->title, std::chrono::duration_cast<std::chrono::milliseconds>(elapsed)) << std::endl;
+        #ifdef USE_FMT_FORMT
+            std::cout << uva::console::color(uva::console::color_code::green) << std::format("{}: {} ms...", this->title, std::chrono::duration_cast<std::chrono::milliseconds>(elapsed).count()) << std::endl;
+        #else
+            std::cout << uva::console::color(uva::console::color_code::green) << std::format("{}: {}...", this->title, std::chrono::duration_cast<std::chrono::milliseconds>(elapsed)) << std::endl;
+        #endif
 
     } catch(std::exception e)
     {
