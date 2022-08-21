@@ -25,13 +25,13 @@ public:
 
 uva_define_migration(AddProductMigration)
 
-std::filesystem::path database_path;
+static std::filesystem::path database_path;
 
 cspec_describe("uva::database",
 
     context("setting up a new database", 
 
-        before_all_tests([&](){
+        before_all_tests([](){
             database_path = uva::cspec::temp_folder / "database.db";
         })
 
