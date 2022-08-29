@@ -38,7 +38,7 @@ public:\
     static uva::database::active_record_relation from(const std::string& from) { return record::all().from(from); } \
     static uva::database::active_record_relation select(const std::string& select) { return record::all().select(select); } \
     static size_t count(const std::string& count = "*") { return record::all().count(); } \
-    static uva::database::active_record_relation order_by(const std::string& order) { return record::all().order_by(order); } \
+    template<class... Args> static uva::database::active_record_relation order_by(const std::string order, Args const&... args) { return record::all().order_by(order, args...); }\
     static uva::database::active_record_relation limit(const std::string& limit) { return record::all().limit(limit); } \
     static uva::database::active_record_relation limit(const size_t& limit) { return record::all().limit(limit); } \
     static void each_with_index(std::function<void(std::map<std::string, uva::database::multiple_value_holder>&, const size_t&)> func) { return record::all().each_with_index(func); }\
@@ -51,7 +51,7 @@ public:\
 #define uva_database_define_full(record, __table_name, sufix) \
 uva::database::table* record::table() { \
 \
-    static std::string table_name = uva::string::tolower(__table_name) + sufix; \
+    static std::string table_name = uva::string::to_snake_case(__table_name) + sufix; \
 \
     static uva::database::table* table = uva::database::table::get_table(table_name);\
     \
@@ -139,7 +139,8 @@ namespace uva
             enum class value_type {
                 string,
                 integer,
-                real
+                real,
+                array
             };
 
             value_type type;
@@ -147,9 +148,11 @@ namespace uva
             std::string str;
             int64_t integer;
             double real;
+            std::vector<multiple_value_holder> array;
         public:
             std::string to_s() const;
             int64_t to_i() const;
+            operator int() const;
             operator uint64_t() const;
             operator int64_t() const;
             operator std::string() const;
@@ -167,6 +170,7 @@ namespace uva
             bool operator==(const std::string& s) const;
             bool operator!=(const std::string& s) const;
             bool operator==(const bool& b) const;
+            bool operator<(const double& d) const;
             template<typename T>
             bool operator<(const T& other) const
             {
@@ -182,6 +186,12 @@ namespace uva
                 stream << holder.to_s();
                 return stream;
             }
+            friend bool operator<(const double& d, const multiple_value_holder& h)
+            {
+                return d < h.real;
+            }
+            const multiple_value_holder& operator[](const size_t& i) const;
+            multiple_value_holder& operator[](const size_t& i);
         };
 
         class active_record_relation
@@ -226,6 +236,18 @@ namespace uva
                 append_where(__where);
                 return *this;
             }
+            template<class... Args>
+            active_record_relation& order_by(const std::string order, Args... args)
+            {
+                #ifdef USE_FMT_FORMT
+                    std::string __order = vformat(order, std::make_format_args(args...));
+                #else
+                    std::string __order = std::format(order, std::forward<Args>(args)...);
+                #endif
+
+                order_by(__order);
+                return *this;
+            }
             active_record_relation& order_by(const std::string& order);
             active_record_relation& limit(const std::string& limit);
             active_record_relation& limit(const size_t& limit);
@@ -234,6 +256,7 @@ namespace uva
             active_record_relation& columns(const std::vector<std::string>& cols);
             active_record_relation& into(const std::string& into);
             active_record_relation& returning(const std::string& returning);
+            std::vector<multiple_value_holder> run_sql(const std::string& col);
             std::vector<multiple_value_holder> pluck(const std::string& col);
             std::vector<std::vector<uva::database::multiple_value_holder>> pluckm(const std::string& cols);
             size_t count(const std::string& count = "*") const;
@@ -350,7 +373,9 @@ namespace uva
             void call_change();
         public:
             void add_table(const std::string& table_name, const std::vector<std::pair<std::string, std::string>>& cols);
+            void drop_table(const std::string& table_name);
             void add_column(const std::string& table_name, const std::string& name, const std::string& type, const std::string& default_value) const;
+            void add_index(const std::string& table_name, const std::string& column);
             void change_column(const std::string& table_name, const std::string& name, const std::string& type) const;
         };
     };

@@ -357,7 +357,7 @@ void uva::database::sqlite3_connection::change_column(uva::database::table* tabl
 //MULTIPLE_VALUE_HOLDER
 
 uva::database::multiple_value_holder::multiple_value_holder(uva::database::multiple_value_holder&& other)
-    : type(other.type), str(std::move(other.str)), integer(other.integer), real(other.real)
+    : type(other.type), str(std::move(other.str)), integer(other.integer), real(other.real), array(std::move(other.array))
 {
 
 }
@@ -461,6 +461,11 @@ int64_t uva::database::multiple_value_holder::to_i() const
 
     throw std::runtime_error(std::format("failed to convert from (value_type){} to integer", (size_t)type));
     return -1;
+}
+
+uva::database::multiple_value_holder::operator int() const
+{
+    return (int)integer;
 }
 
 uva::database::multiple_value_holder::operator uint64_t() const
@@ -569,6 +574,21 @@ bool uva::database::multiple_value_holder::operator!=(const std::string& s) cons
 bool uva::database::multiple_value_holder::operator==(const bool& b) const
 {
     return b == (bool)integer;
+}
+
+bool uva::database::multiple_value_holder::operator<(const double& d) const
+{
+    return real < d;
+}
+
+const uva::database::multiple_value_holder& uva::database::multiple_value_holder::operator[](const size_t& i) const
+{
+    return array[i];
+}
+
+uva::database::multiple_value_holder& uva::database::multiple_value_holder::operator[](const size_t& i)
+{
+    return array[i];
 }
 
 //END MULTIPLE_VALUE_HOLDER
@@ -963,8 +983,14 @@ std::vector<uva::database::multiple_value_holder> uva::database::active_record_r
 
     for(const auto& value : rel.m_results)
     {
-        if(value.size()) {
-            values.push_back(value[0]);
+        if(value.size() == 1) {
+            values.push_back(std::move(value[0]));
+        } else if(value.size() > 1) {
+            uva::database::multiple_value_holder v;
+            v.type = uva::database::multiple_value_holder::value_type::array;
+            v.array = std::move(value);
+
+            values.push_back(std::move(v));
         }
     }
 
@@ -1344,6 +1370,9 @@ void uva::database::active_record_relation::commit(const std::string& sql)
 
                     case uva::database::multiple_value_holder::value_type::string: {
                         const unsigned char* value = sqlite3_column_text(stmt, colIndex);
+                        if(!value) {
+                            value = (const unsigned char*)"";
+                        }
                         holder = value;
                     }
                     break;
@@ -1506,6 +1535,16 @@ void uva::database::basic_migration::add_table(const std::string& table_name, co
 {
     uva::database::table* new_table = new uva::database::table(table_name, cols);
     uva::database::basic_connection::get_connection()->create_table(new_table);
+}
+
+void uva::database::basic_migration::drop_table(const std::string& table_name)
+{
+    uva::database::active_record_relation().commit_without_prepare(std::format("DROP TABLE {};", table_name));
+}
+
+void uva::database::basic_migration::add_index(const std::string& table_name, const std::string& column)
+{
+    uva::database::active_record_relation().commit_without_prepare(std::format("CREATE INDEX idx_{}_on_{} ON {}({});", table_name, uva::string::replace(column, ',', '_'), table_name, column));
 }
 
 void uva::database::basic_migration::add_column(const std::string& table_name, const std::string& name, const std::string& type, const std::string& default_value) const
