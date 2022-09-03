@@ -158,18 +158,22 @@ namespace uva
             operator std::string() const;
             operator bool() const;
             operator double() const;
+            multiple_value_holder& operator=(const bool& b);
+            multiple_value_holder& operator=(const int64_t& i);
+            multiple_value_holder& operator=(const uint64_t& i);
+            multiple_value_holder& operator=(const double& d);
             multiple_value_holder& operator=(const char* c);
             multiple_value_holder& operator=(const unsigned char* c);
-            multiple_value_holder& operator=(const uint64_t& i);
-            multiple_value_holder& operator=(const int64_t& i);
             multiple_value_holder& operator=(const std::string& s);
-            multiple_value_holder& operator=(const bool& b);
-            multiple_value_holder& operator=(const double& d);
             multiple_value_holder& operator=(const multiple_value_holder& other);
+
+            bool operator==(const bool& b) const;
             bool operator==(const double& d) const;
             bool operator==(const std::string& s) const;
+
+            bool operator!=(const int& i) const;
             bool operator!=(const std::string& s) const;
-            bool operator==(const bool& b) const;
+
             bool operator<(const double& d) const;
             template<typename T>
             bool operator<(const T& other) const

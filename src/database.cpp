@@ -566,14 +566,19 @@ bool uva::database::multiple_value_holder::operator==(const std::string& s) cons
     return str == s;
 }
 
+bool uva::database::multiple_value_holder::operator==(const bool& b) const
+{
+    return b == (bool)integer;
+}
+
 bool uva::database::multiple_value_holder::operator!=(const std::string& s) const
 {
     return str != s;
 }
 
-bool uva::database::multiple_value_holder::operator==(const bool& b) const
+bool uva::database::multiple_value_holder::operator!=(const int& i) const
 {
-    return b == (bool)integer;
+    return integer != i;
 }
 
 bool uva::database::multiple_value_holder::operator<(const double& d) const
