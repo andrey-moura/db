@@ -14,7 +14,7 @@ cmake ..
 make
 ```
 
-## Usage
+## Basic Usage
 
 ```cpp
 #include <database.hpp>
@@ -25,11 +25,9 @@ class User : public uva::database::basic_active_record
     uva_database_declare(User)
 };
 
-uva_database_define_sqlite3(User, uva_database_params(
-{
-    { "name", "TEXT" },
-    { "email", "TEXT" },
-}), std::filesystem::absolute("database") / "database.db");
+uva_database_define(User);
+
+uva_database_define_sqlite3("database.db");
 
 int main()
 {
