@@ -1,6 +1,6 @@
 # database
 
-Pretty simple cross-platform library based in the ActiveRecord from Ruby, for queryging and writing, an wrapper around SQL.
+Pretty simple cross-platform library based in the ActiveRecord from Ruby, an wrapper around SQL.
 
 ## Building 
 
