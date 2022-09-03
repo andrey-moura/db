@@ -76,6 +76,7 @@ uva_define_migration(AddUsersMigration);
 
 ### Todo For Next (First) Release
 
+* Create database tool
 * Move multiple_value_holder to uva::string
 * Create database_exception
 * Strongly typed multiple_value_holder
