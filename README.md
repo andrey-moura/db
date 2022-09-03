@@ -70,5 +70,9 @@ uva_define_migration(AddUsersMigration);
 
 ```
 
+### Supported database engines
+
+* SQLite3
+
 ## Contributing
 Just make a PR! :)
