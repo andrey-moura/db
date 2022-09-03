@@ -77,8 +77,10 @@ uva_define_migration(AddUsersMigration);
 ### Todo For Next (First) Release
 
 * Move multiple_value_holder to uva::string
+* Create database_exception
+* Strongly typed multiple_value_holder
 * Complete Todo List of [uva::string](https://github.com/Moonslate/string)
-* Complete Todo List of [uva::cspec](https://github.com/Moonslate/string)
+* Complete Todo List of [uva::cspec](https://github.com/Moonslate/cspec)
 * Have 100% of tests coverage
 
 ## Contributing
