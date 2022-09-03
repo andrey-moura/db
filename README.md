@@ -45,5 +45,30 @@ int main()
 }
 ```
 
+### Creating a new table
+
+```cpp
+
+#include <database.hpp>
+
+class AddUsersMigration : public uva::database::basic_migration
+{
+uva_declare_migration(AddUsersMigration);
+protected:
+    virtual void change() override
+    {
+        add_table("users",
+        {
+            { "name",        "TEXT NOT NULL" },
+            { "permissions", "TEXT" },
+            { "password",    "TEXT NOT NULL" },
+        });
+    }
+};
+
+uva_define_migration(AddUsersMigration);
+
+```
+
 ## Contributing
 Just make a PR! :)
