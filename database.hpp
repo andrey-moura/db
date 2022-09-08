@@ -368,7 +368,7 @@ namespace uva
             bool present() const;
             void destroy();            
         public:
-            size_t id = -1; 
+            size_t id = 0; 
         protected:
             virtual const table* get_table() const = 0;
             virtual table* get_table() = 0;
