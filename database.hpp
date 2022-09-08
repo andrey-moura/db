@@ -61,7 +61,13 @@ public:\
     static void each_with_index(std::function<void(record&, const size_t&)> func) { return record::all().each_with_index<record>(func); }\
     static void each(std::function<void(record&)> func) { return record::all().each<record>(func); }\
     template<class... Args> static record find_by(std::string where, Args const&... args) { return record(record::all().find_by(where, args...)); }\
-    static record first() { return all().first(); }
+    static record first() { return all().first(); }\
+    record& operator=(const record& other)\
+    {\
+        id = other.id;\
+        values = other.values;\
+        return *this;\
+    }\
 
 #define uva_database_define_full(record, __table_name, sufix) \
 uva::database::table* record::table() { \
