@@ -146,7 +146,7 @@ namespace uva
 
         struct multiple_value_holder
         {
-            multiple_value_holder() = default;
+            multiple_value_holder();
             multiple_value_holder(const multiple_value_holder& other) = default;
             multiple_value_holder(multiple_value_holder&& other);
             multiple_value_holder(const uint64_t& _integer);
@@ -158,10 +158,11 @@ namespace uva
             multiple_value_holder(const double& d);
 
             enum class value_type {
+                null,
                 string,
                 integer,
                 real,
-                array
+                array,
             };
 
             value_type type;
@@ -171,8 +172,10 @@ namespace uva
             double real;
             std::vector<multiple_value_holder> array;
         public:
+            bool is_null() const;
             std::string to_s() const;
             int64_t to_i() const;
+        public:
             operator int() const;
             operator uint64_t() const;
             operator int64_t() const;

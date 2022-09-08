@@ -356,6 +356,12 @@ void uva::database::sqlite3_connection::change_column(uva::database::table* tabl
 
 //MULTIPLE_VALUE_HOLDER
 
+uva::database::multiple_value_holder::multiple_value_holder()
+    : type(uva::database::multiple_value_holder::value_type::null)
+{
+
+}
+
 uva::database::multiple_value_holder::multiple_value_holder(uva::database::multiple_value_holder&& other)
     : type(other.type), str(std::move(other.str)), integer(other.integer), real(other.real), array(std::move(other.array))
 {
@@ -403,6 +409,11 @@ uva::database::multiple_value_holder::multiple_value_holder(const double& d)
     : real(d), type(uva::database::multiple_value_holder::value_type::real)
 {
     
+}
+
+bool uva::database::multiple_value_holder::is_null() const
+{
+    return type == value_type::null;
 }
 
 std::string uva::database::multiple_value_holder::to_s() const
