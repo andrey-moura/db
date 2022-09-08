@@ -539,6 +539,13 @@ uva::database::multiple_value_holder& uva::database::multiple_value_holder::oper
     return *this;
 }
 
+uva::database::multiple_value_holder& uva::database::multiple_value_holder::operator=(const int& i)
+{
+    integer = (int64_t)i;
+    type = uva::database::multiple_value_holder::value_type::integer;
+    return *this;
+}
+
 uva::database::multiple_value_holder& uva::database::multiple_value_holder::operator=(const bool& b)
 {
     integer = (int64_t)b;

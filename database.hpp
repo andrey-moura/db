@@ -183,6 +183,7 @@ namespace uva
             operator bool() const;
             operator double() const;
             multiple_value_holder& operator=(const bool& b);
+            multiple_value_holder& operator=(const int& i);
             multiple_value_holder& operator=(const int64_t& i);
             multiple_value_holder& operator=(const uint64_t& i);
             multiple_value_holder& operator=(const double& d);
