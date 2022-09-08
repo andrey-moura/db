@@ -1,6 +1,6 @@
 # database
 
-Pretty simple cross-platform library based in the ActiveRecord from Ruby, an wrapper around SQL.
+Simple cross-platform library based in the ActiveRecord from Ruby, an wrapper around SQL.
 
 ## Building 
 
@@ -76,12 +76,18 @@ uva_define_migration(AddUsersMigration);
 
 ### Todo For Next (First) Release
 
+* Before save, update ⌛
+* Create database tool
 * Move multiple_value_holder to uva::string
 * Create database_exception
 * Strongly typed multiple_value_holder
 * Complete Todo List of [uva::string](https://github.com/Moonslate/string)
 * Complete Todo List of [uva::cspec](https://github.com/Moonslate/cspec)
 * Have 100% of tests coverage
+
+### Priority (For future releases)
+
+* 🐞 - Copy constructor of base class not works
 
 ## Contributing
 Just make a PR! :)
