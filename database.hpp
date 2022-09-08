@@ -322,8 +322,9 @@ namespace uva
             void append_where(const std::string& where);
             std::string commit_sql() const;
             void commit();
-            void commit_without_prepare(const std::string& sql);
+            void commit_without_prepare();
             void commit(const std::string& sql);
+            void commit_without_prepare(const std::string& sql);
         };
 
         class table

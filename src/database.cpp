@@ -1269,6 +1269,13 @@ void uva::database::active_record_relation::commit()
     commit(sql);
 }
 
+void uva::database::active_record_relation::commit_without_prepare()
+{
+    std::string sql = commit_sql();
+
+    commit_without_prepare(sql);
+}
+
 std::string uva::database::active_record_relation::to_sql() const
 {
     std::string sql = commit_sql();
