@@ -813,8 +813,13 @@ std::vector<std::pair<std::string, std::string>>::const_iterator uva::database::
     return it;
 }
 
+void uva::database::table::update(size_t id, const std::map<std::string, uva::database::multiple_value_holder>& values)
+{
+    active_record_relation(this).unscoped().update(values).commit_without_prepare();
+}
+
 void uva::database::table::update(size_t id, const std::string& key, const std::string& value) {
-    
+    update(id, { { key, value } });
 }
 
 //END TABLE
@@ -890,16 +895,40 @@ const uva::database::multiple_value_holder& uva::database::basic_active_record::
 
 void uva::database::basic_active_record::save()
 {
-    auto relation = uva::database::active_record_relation(get_table());
-//     UPDATE table_name
-// SET column1 = value1, column2 = value2, ...
-// WHERE condition; 
-//     a   'll().where("id={}", at("id")).
+    before_save();
+    
+    auto it = values.find("id"); 
+
+    if(it == values.end() || it->second.is_null()) {
+       values["id"] = get_table()->create(values);
+    } else {
+        before_update();
+        get_table()->update(it->second, values);
+    }
 }
 
 void uva::database::basic_active_record::update(const std::string& col, const uva::database::multiple_value_holder& value)
 {
+    values[col] = value;
+    before_update();
 
+    uva::database::table* table = get_table();
+    table->update(values["id"], col, value);
+
+    before_save();
+}
+
+void uva::database::basic_active_record::update(const std::map<std::string, uva::database::multiple_value_holder>& _values)
+{
+    for(const auto& value : _values) {
+        values[value.first] = value.second;
+    }
+
+    before_update();
+    
+    get_table()->update(values["id"], _values);
+
+    before_save();
 }
 
 //END ACTIVE RECORD

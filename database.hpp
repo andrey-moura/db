@@ -347,6 +347,7 @@ namespace uva
             void destroy(size_t id);
             bool relation_exists(size_t id) const;
             void update(size_t id, const std::string& key, const std::string& value);
+            void update(size_t id, const std::map<std::string, multiple_value_holder>& value);
             static std::map<std::string, table*>& get_tables();
             static table* get_table(const std::string& name);
             std::string& at(size_t id, const std::string& key);
@@ -371,6 +372,8 @@ namespace uva
         protected:
             virtual const table* get_table() const = 0;
             virtual table* get_table() = 0;
+            virtual void before_save() { };
+            virtual void before_update() { };
             std::map<std::string, multiple_value_holder> values;
         public:
             multiple_value_holder& at(const std::string& str);
@@ -378,6 +381,7 @@ namespace uva
 
             void save();
             void update(const std::string& col, const multiple_value_holder& value);
+            void update(const std::map<std::string, multiple_value_holder>& values);
         public:
             multiple_value_holder& operator[](const char* str);
             const multiple_value_holder& operator[](const char* str) const;
