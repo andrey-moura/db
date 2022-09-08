@@ -884,13 +884,16 @@ uva::database::basic_active_record& uva::database::basic_active_record::operator
 
 uva::database::multiple_value_holder& uva::database::basic_active_record::at(const std::string& str)
 {
-    auto it = values.find(str);
+    uva::database::multiple_value_holder& value = values[str];
+    return value;
 
-    if(it == values.end()) {
-        throw std::runtime_error(std::format("Record from {} has no column named {}", get_table()->m_name, str));
-    }
+    //return it->second;auto it = values.find(str);
 
-    return it->second;
+    // if(it == values.end()) {
+    //     throw std::runtime_error(std::format("Record from {} has no column named {}", get_table()->m_name, str));
+    // }
+
+    //return it->second;
 }
 
 const uva::database::multiple_value_holder& uva::database::basic_active_record::at(const std::string& str) const
