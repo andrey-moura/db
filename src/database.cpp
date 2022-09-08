@@ -584,6 +584,35 @@ bool uva::database::multiple_value_holder::operator==(const std::string& s) cons
     return str == s;
 }
 
+bool uva::database::multiple_value_holder::operator==(const uva::database::multiple_value_holder& other) const
+{
+    if(type != other.type)
+    {
+        throw std::runtime_error("failed to compare multiple_value_holder with incompatible value_type");
+    }
+
+    switch (type)
+    {
+    case value_type::null:
+        return other.type == value_type::null;
+        break;
+    case value_type::string:
+        return str == other.str;
+        break;
+    case value_type::integer:
+        return integer == other.integer;
+        break;
+    case value_type::real:
+        return real == other.real;
+        break;
+    case value_type::array:
+        return array == other.array;
+        break;
+    default:
+        break;
+    }
+}
+
 bool uva::database::multiple_value_holder::operator==(const bool& b) const
 {
     return b == (bool)integer;

@@ -192,6 +192,7 @@ namespace uva
             multiple_value_holder& operator=(const std::string& s);
             multiple_value_holder& operator=(const multiple_value_holder& other);
 
+            bool operator==(const multiple_value_holder& other) const;
             bool operator==(const bool& b) const;
             bool operator==(const double& d) const;
             bool operator==(const std::string& s) const;
