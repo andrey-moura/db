@@ -85,5 +85,9 @@ uva_define_migration(AddUsersMigration);
 * Complete Todo List of [uva::cspec](https://github.com/Moonslate/cspec)
 * Have 100% of tests coverage
 
+### Priority (For future releases)
+
+* 🐞 - Copy constructor of base class not works
+
 ## Contributing
 Just make a PR! :)
