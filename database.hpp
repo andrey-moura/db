@@ -20,6 +20,8 @@
 //     other.id = 0;\
 // }\
 
+#define null uva::database::multiple_value_holder()
+
 #define UVA_DATABASE_AVAILABLE
 
 #define uva_database_params(...) __VA_ARGS__ 
@@ -92,7 +94,7 @@ uva::database::table* record::table() { \
 namespace uva
 {
     namespace database
-    {        
+    {
         class table;
         class basic_active_record;
 
@@ -158,7 +160,7 @@ namespace uva
             multiple_value_holder(const double& d);
 
             enum class value_type {
-                null,
+                null_type,
                 string,
                 integer,
                 real,

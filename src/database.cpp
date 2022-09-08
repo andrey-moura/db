@@ -357,7 +357,7 @@ void uva::database::sqlite3_connection::change_column(uva::database::table* tabl
 //MULTIPLE_VALUE_HOLDER
 
 uva::database::multiple_value_holder::multiple_value_holder()
-    : type(uva::database::multiple_value_holder::value_type::null)
+    : type(uva::database::multiple_value_holder::value_type::null_type)
 {
 
 }
@@ -413,7 +413,7 @@ uva::database::multiple_value_holder::multiple_value_holder(const double& d)
 
 bool uva::database::multiple_value_holder::is_null() const
 {
-    return type == value_type::null;
+    return type == value_type::null_type;
 }
 
 std::string uva::database::multiple_value_holder::to_s() const
@@ -593,8 +593,8 @@ bool uva::database::multiple_value_holder::operator==(const uva::database::multi
 
     switch (type)
     {
-    case value_type::null:
-        return other.type == value_type::null;
+    case value_type::null_type:
+        return other.type == value_type::null_type;
         break;
     case value_type::string:
         return str == other.str;
@@ -1493,7 +1493,7 @@ void uva::database::active_record_relation::commit(const std::string& sql)
                         if(!value) {
                             value = (const unsigned char*)"";
                         }
-                        holder = value;
+                            holder = value;
                     }
                     break;
                     case uva::database::multiple_value_holder::value_type::integer: {
