@@ -27,13 +27,24 @@
 #define uva_database_declare(record) \
 public:\
     record() : uva::database::basic_active_record(std::string::npos) { } \
+    record(const record& other) : uva::database::basic_active_record(other) { } \
     record(size_t id) : uva::database::basic_active_record(id) { } \
     record(const std::map<std::string, uva::database::multiple_value_holder>& values) : uva::database::basic_active_record(values) { } \
+    record(std::map<std::string, uva::database::multiple_value_holder>&& values) : uva::database::basic_active_record(std::forward<std::map<std::string, uva::database::multiple_value_holder>>(values)) { } \
     const uva::database::table* get_table() const override { return table(); } \
     uva::database::table* get_table() override { return table(); } \
     static uva::database::table* table(); \
     static size_t create() { return table()->create(); } \
-    static size_t create(const std::map<std::string, uva::database::multiple_value_holder>& relations) { return table()->create(relations); } \
+    static record&& create(std::map<std::string, uva::database::multiple_value_holder>&& relations) {\
+        record r(std::forward<std::map<std::string, uva::database::multiple_value_holder>>(relations)); \
+        r.save();\
+        return std::move(r);\
+    } \
+    static record&& create(const std::map<std::string, uva::database::multiple_value_holder>& relations) {\
+        record r(relations); \
+        r.save();\
+        return std::move(r);\
+    } \
     static void create(std::vector<std::map<std::string, std::string>>& relations) { table()->create(relations); } \
     static size_t column_count() { return table()->m_columns.size(); } \
     static std::vector<std::pair<std::string, std::string>>& columns() { return table()->m_columns; } \
