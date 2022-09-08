@@ -15,6 +15,10 @@
 #include <console.hpp>
 #include <diagnostics.hpp>
 #include <string.hpp>
+// record(record&& other) : uva::database::basic_active_record(std::forward<std::map<std::string, uva::database::multiple_value_holder>>(other.values))\
+// {\
+//     other.id = 0;\
+// }\
 
 #define UVA_DATABASE_AVAILABLE
 
