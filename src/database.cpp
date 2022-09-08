@@ -1646,9 +1646,8 @@ void uva::database::basic_migration::do_pending_migrations()
 
 void uva::database::basic_migration::apply()
 {
-    size_t id = create({
-        { "title",   title }
-    });
+    at("title") = title;
+    save();
 }
 
 void uva::database::basic_migration::add_table(const std::string& table_name, const std::vector<std::pair<std::string, std::string>>& cols)
