@@ -362,8 +362,10 @@ namespace uva
         {              
         public:
             basic_active_record(size_t _id);
-            basic_active_record(const basic_active_record& value);
+            basic_active_record(const basic_active_record& record);
+            basic_active_record(basic_active_record&& record);
             basic_active_record(const std::map<std::string, multiple_value_holder>& value);
+            basic_active_record(std::map<std::string, multiple_value_holder>&& value);
         public:
             bool present() const;
             void destroy();            
@@ -375,6 +377,8 @@ namespace uva
             virtual void before_save() { };
             virtual void before_update() { };
             std::map<std::string, multiple_value_holder> values;
+        public:
+            basic_active_record& operator=(const basic_active_record& other);
         public:
             multiple_value_holder& at(const std::string& str);
             const multiple_value_holder& at(const std::string& str) const;

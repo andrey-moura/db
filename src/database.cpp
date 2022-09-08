@@ -832,25 +832,54 @@ uva::database::basic_active_record::basic_active_record(size_t _id)
 }
 
 uva::database::basic_active_record::basic_active_record(const basic_active_record& _record)
-    : id(_record.id)
+    : id(_record.id), values(_record.values)
 {
 
 }
 
-uva::database::basic_active_record::basic_active_record(const std::map<std::string, uva::database::multiple_value_holder>& value)
-    : values(value)
+uva::database::basic_active_record::basic_active_record(basic_active_record&& _record)
+    :  id(_record.id), values(std::move(_record.values))
+{
+    _record.id = 0;
+}
+
+uva::database::basic_active_record::basic_active_record(const std::map<std::string, uva::database::multiple_value_holder>& _values)
+    : values(values)
+{
+
+}
+
+uva::database::basic_active_record::basic_active_record(std::map<std::string, uva::database::multiple_value_holder>&& _values)
+    : values(std::forward<std::map<std::string, uva::database::multiple_value_holder>>(_values))
 {
 
 }
 
 bool uva::database::basic_active_record::present() const {
-    bool present = !values.empty();
-    return present;
+    if (values.empty()) {
+        return false;
+    }
+
+    auto it = values.find("id");
+
+    if(it == values.end()) {
+        return false;
+    }
+
+    return it->second;
 }
 
 void uva::database::basic_active_record::destroy() {
     get_table()->destroy(id);
     id = -1;
+}
+
+uva::database::basic_active_record& uva::database::basic_active_record::operator=(const uva::database::basic_active_record& other)
+{
+    values = other.values;
+    id = other.id;
+    
+    return *this;
 }
 
 uva::database::multiple_value_holder& uva::database::basic_active_record::at(const std::string& str)
