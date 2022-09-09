@@ -247,8 +247,6 @@ namespace uva
 
             std::map<std::string, size_t> m_columnsIndexes;
             std::vector<std::string> m_columnsNames;
-            std::vector<multiple_value_holder::value_type> m_columnsTypes;
-
 
             bool m_unscoped = false;
         public:

@@ -420,6 +420,8 @@ std::string uva::database::multiple_value_holder::to_s() const
 {
     switch(type)
     {
+        case value_type::null_type:
+            return "null";
         case value_type::string:
             return str;
         break;
@@ -1033,22 +1035,26 @@ uva::database::active_record_relation& uva::database::active_record_relation::li
 uva::database::active_record_relation& uva::database::active_record_relation::insert(std::vector<uva::database::multiple_value_holder>& insert)
 {
     for(auto& holder : insert) {
-        if(holder.type == uva::database::multiple_value_holder::value_type::string) {
-            std::string str;
-            str.reserve(holder.str.size()+2);
-            str.push_back('\'');
-
-            for(const char& c : holder.str)
+        switch(holder.type) {
+            case uva::database::multiple_value_holder::value_type::string:
             {
-                str.push_back(c);
-                if(c == '\'') {
-                    str.push_back('\'');
+                std::string str;
+                str.reserve(holder.str.size()+2);
+                str.push_back('\'');
+
+                for(const char& c : holder.str)
+                {
+                    str.push_back(c);
+                    if(c == '\'') {
+                        str.push_back('\'');
+                    }
                 }
+
+
+                str.push_back('\'');
+                holder.str = str;
             }
-
-
-            str.push_back('\'');
-            holder.str = str;
+            break;
         }
     }
 
@@ -1353,7 +1359,6 @@ void uva::database::active_record_relation::commit_without_prepare(const std::st
 {
     m_columnsNames.clear();
     m_columnsIndexes.clear();
-    m_columnsTypes.clear();
 
     sqlite3_connection* connection = (sqlite3_connection*)uva::database::basic_connection::get_connection();
 
@@ -1381,8 +1386,6 @@ void uva::database::active_record_relation::commit_without_prepare(const std::st
                 
                 data->self->m_columnsNames.push_back(colName);
                 data->self->m_columnsIndexes.insert({colName, i});
-
-                data->self->m_columnsTypes.push_back(uva::database::multiple_value_holder::value_type::string);
             }
         
             data->firstCalback = false;
@@ -1426,7 +1429,6 @@ void uva::database::active_record_relation::commit(const std::string& sql)
 {
     m_columnsNames.clear();
     m_columnsIndexes.clear();
-    m_columnsTypes.clear();
 
     std::string error_report;
 
@@ -1454,68 +1456,53 @@ void uva::database::active_record_relation::commit(const std::string& sql)
         for (int colIndex = 0; colIndex < colCount; colIndex++) {        
 
             std::string name = sqlite3_column_name(stmt, colIndex);
-            const char* t = sqlite3_column_decltype(stmt, colIndex);
-
-            if(t == nullptr) {
-                if(name.starts_with("COUNT")) {
-                    t = "INTEGER";
-                }
-            }
-
-            std::string type = t ? t : "TEXT";
-
             m_columnsNames.push_back(name);
-            m_columnsIndexes.insert({name, colIndex});
-
-            uva::database::multiple_value_holder::value_type value_type;
-
-            if(type == "TEXT" || type.starts_with("NVARCHAR")) {
-                value_type = uva::database::multiple_value_holder::value_type::string;
-            } else if(type == "REAL") {
-                value_type = uva::database::multiple_value_holder::value_type::real;
-            }
-            else {
-                value_type = uva::database::multiple_value_holder::value_type::integer;
-            }
-
-            m_columnsTypes.push_back(value_type);
         }
 
         while (sqlite3_step(stmt) == SQLITE_ROW) {
-            auto current_col = m_columnsTypes.begin();
             std::vector<uva::database::multiple_value_holder> cols;
 
             for (int colIndex = 0; colIndex < colCount; colIndex++) {
 
                 uva::database::multiple_value_holder holder;
-                holder.type = *current_col;
+                size_t type = sqlite3_column_type(stmt, colIndex);
 
-                switch (*current_col)
+                switch (type)
                 {
-
-                    case uva::database::multiple_value_holder::value_type::string: {
-                        const unsigned char* value = sqlite3_column_text(stmt, colIndex);
-                        if(!value) {
-                            value = (const unsigned char*)"";
-                        }
-                            holder = value;
-                    }
-                    break;
-                    case uva::database::multiple_value_holder::value_type::integer: {
+                    case SQLITE_INTEGER:
+                    {
                         int64_t value = sqlite3_column_int64(stmt, colIndex);
                         holder = value;
+
+                        break;
                     }
-                    break;
-                    case uva::database::multiple_value_holder::value_type::real: {
+                    case SQLITE_FLOAT:
+                    {
                         double value = sqlite3_column_double(stmt, colIndex);
                         holder = value;
+
+                        break;
                     }
-                    break;
+                    case SQLITE_NULL:
+                    {
+                        holder = null;
+
+                        break;
+                    }
+                    case SQLITE3_TEXT:
+                    {
+                        const unsigned char* value = sqlite3_column_text(stmt, colIndex);
+
+                        if(!value) {
+                            throw std::runtime_error("attempting to read null value");
+                        }
+                        holder = value;
+
+                        break;
+                    }
                 }
 
                 cols.emplace_back(holder);
-
-                current_col++;
             }
 
             m_results.emplace_back(cols);
