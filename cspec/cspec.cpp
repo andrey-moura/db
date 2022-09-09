@@ -2,7 +2,9 @@
 #include <faker.hpp>
 #include <cspec.hpp>
 
-class Product : public uva::database::basic_active_record
+using namespace uva::database;
+
+class Product : public basic_active_record
 {
     uva_database_declare(Product);
 protected:
@@ -17,15 +19,21 @@ protected:
 
     void print_columns()
     {
-        std::cout << uva::string::join(uva::string::join(values, [](const std::pair<std::string, uva::database::multiple_value_holder>& value) {
+        std::cout << uva::string::join(uva::string::join(values, [](const std::pair<std::string, multiple_value_holder>& value) {
             return std::format("{}={}", value.first, value.second.to_s());
         }), ',');
     }
 };
 
-uva_database_define(Product);
+class MultipleValueHolder : public basic_active_record
+{
+uva_database_declare(MultipleValueHolder);
+};
 
-class AddProductsMigration : public uva::database::basic_migration
+uva_database_define(Product);
+uva_database_define(MultipleValueHolder);
+
+class AddProductsMigration : public basic_migration
 {
     uva_declare_migration(AddProductsMigration);
 public:
@@ -39,7 +47,24 @@ public:
     }
 };
 
+class AddMultipleValueHoldersMigration : public basic_migration
+{
+    uva_declare_migration(AddMultipleValueHoldersMigration);
+public:
+    virtual void change() override
+    {
+        add_table("multiple_value_holders",
+        {
+            { "string",  "TEXT" },
+            { "integer", "INTEGER" },
+            { "float",   "REAL" },
+            { "null_value",    "INTEGER" },
+        });
+    }
+};
+
 uva_define_migration(AddProductsMigration)
+uva_define_migration(AddMultipleValueHoldersMigration)
 
 static std::filesystem::path database_path;
 
@@ -64,13 +89,13 @@ cspec_describe("uva::database",
 
         it("should starts without creating AddProductMigration migration", []()
         {
-           expect(uva::database::basic_migration::where("title='{}'", "AddProductsMigration")).to_not exist;
+           expect(basic_migration::where("title='{}'", "AddProductsMigration")).to_not exist;
         })
 
         it("should create AddProductMigration migration after uva_run_migrations", []()
         {
            uva_run_migrations()
-           expect(uva::database::basic_migration::where("title='{}'", "AddProductsMigration")).to exist;
+           expect(basic_migration::where("title='{}'", "AddProductsMigration")).to exist;
         })
 
         it("should create new product", []()
@@ -136,7 +161,7 @@ cspec_describe("uva::database",
         })
 
         it("should pluck last 5 products.name", [](){
-            std::vector<uva::database::multiple_value_holder> values = Product::all().order_by("id desc").limit(5).pluck("name");
+            std::vector<multiple_value_holder> values = Product::all().order_by("id desc").limit(5).pluck("name");
 
             expect(values).to eq(std::vector<std::string>({
                 "Deer", "Notebook", "Mobile Phone", "Book", "Perfume"
@@ -187,6 +212,35 @@ cspec_describe("uva::database",
             expect([&product](){
                 product.update("name", uva::faker::commerce::product());
             }).to log_on_cout({"before_update product", "before_save product"});
+        })
+    )
+
+    context("types",
+        it("should read correct values and their types", [](){
+
+            std::string string = uva::faker::lorem::sentence();
+            int integer = uva::faker::random_integer(-100000, 100000);
+            double floating = uva::faker::random_double(-50.11, 50.33);
+
+            MultipleValueHolder::create({
+                { "string",  string },
+                { "integer", integer },
+                { "float",   floating },
+                { "null_value",    null },
+            });
+
+            MultipleValueHolder product = MultipleValueHolder::first();
+
+            expect(product["string"]).to eq(string);
+            expect(product["integer"]).to eq(integer);
+            expect(product["float"]).to eq(floating);
+            expect(product["null_value"]).to eq(null);
+
+            expect(product["string"].type).to eq(multiple_value_holder::value_type::string);
+            expect(product["integer"].type).to eq(multiple_value_holder::value_type::integer);
+            expect(product["float"].type).to eq(multiple_value_holder::value_type::real);
+            expect(product["null_value"].type).to eq(multiple_value_holder::value_type::null_type);
+
         })
     )
 );
