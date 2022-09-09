@@ -445,4 +445,41 @@ namespace uva
         return std::format_to(ctx.out(), "{}", v.to_s());
     }
 
+    template<>
+    struct std::formatter<uva::database::multiple_value_holder::value_type>
+    {
+        template<typename ParseContext>
+        constexpr auto parse(ParseContext& ctx);
+
+        template<typename FormatContext>
+        auto format(uva::database::multiple_value_holder::value_type const& v, FormatContext& ctx);
+
+    };
+
+    template<typename ParseContext>
+    constexpr auto std::formatter<uva::database::multiple_value_holder::value_type>::parse(ParseContext& ctx)
+    {
+        return ctx.begin();
+    }
+
+    template<typename FormatContext>
+    auto std::formatter<uva::database::multiple_value_holder::value_type>::format(uva::database::multiple_value_holder::value_type const& type, FormatContext& ctx)
+    {
+        switch(type)
+        {
+            case uva::database::multiple_value_holder::value_type::string:
+                return std::format_to(ctx.out(), "{}", "string");
+            break;
+            case uva::database::multiple_value_holder::value_type::integer:
+                return std::format_to(ctx.out(), "{}", "integer");
+            break;
+            case uva::database::multiple_value_holder::value_type::real:
+                return std::format_to(ctx.out(), "{}", "real");
+            break;
+            case uva::database::multiple_value_holder::value_type::null_type:
+                return std::format_to(ctx.out(), "{}", "null");
+            break;
+        };
+    }
+
 #endif
