@@ -302,7 +302,7 @@ namespace uva
             void each_with_index(std::function<void(record& value, const size_t&)>& func)
             {
                 each_with_index([&](std::map<std::string, multiple_value_holder>& value, const size_t& index){
-                    record r(value);
+                    record r(std::move(value));
                     func(r, index);
                 });
             }
@@ -310,7 +310,7 @@ namespace uva
             void each(std::function<void(record&)>& func)
             {
                 each([&](std::map<std::string, multiple_value_holder>& value){
-                    record r(value);
+                    record r(std::move(value));
                     func(r);
                 });
             }
