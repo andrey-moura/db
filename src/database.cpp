@@ -1,5 +1,29 @@
 #include <database.hpp>
 
+// STATIC MEMBERS
+
+std::map<std::string, uva::database::multiple_value_holder::value_type> uva::database::sql_values_types_map 
+{
+    { "NULL", uva::database::multiple_value_holder::value_type::null_type },
+    { "TEXT", uva::database::multiple_value_holder::value_type::string },
+    { "INTEGER", uva::database::multiple_value_holder::value_type::integer },
+    { "REAL", uva::database::multiple_value_holder::value_type::real },
+};
+
+const uva::database::multiple_value_holder::value_type& uva::database::sql_delctype_to_value_type(const std::string& type)
+{
+    auto it = sql_values_types_map.find(type);
+
+    if(it != sql_values_types_map.end()) 
+    {
+        return it->second;
+    }
+
+    throw std::runtime_error(std::format("failed to convert from '{}' to value_type", type));
+}
+
+// END STATIC MEMBERS
+
 using basic_migration = uva::database::basic_migration;
 uva_database_define_full(basic_migration, "database_migration", "s");
 
@@ -1155,7 +1179,7 @@ size_t uva::database::active_record_relation::count(const std::string& count) co
             return 0;
         }
 
-        return *first_col;
+        return first_col->to_i();
 
     } catch(std::exception& e) {
 
@@ -1432,15 +1456,16 @@ void uva::database::active_record_relation::commit(const std::string& sql)
 
     std::string error_report;
 
-    auto elapsed = uva::diagnostics::measure_function([&] {
+    sqlite3_stmt* stmt;
+    int error = 0;
+    char* error_msg = nullptr;
 
-        sqlite3_stmt* stmt;
+    auto elapsed = uva::diagnostics::measure_function([&] {
 
         sqlite3_connection* connection = (sqlite3_connection*)uva::database::basic_connection::get_connection();
 
-        int error = sqlite3_prepare_v2(connection->get_database(), sql.c_str(), (int)sql.size(), &stmt, nullptr);
+        error = sqlite3_prepare_v2(connection->get_database(), sql.c_str(), (int)sql.size(), &stmt, nullptr);
 
-        char* error_msg = nullptr;
 
         if(error) {
             error_msg = (char*)sqlite3_errmsg(connection->get_database());
@@ -1451,12 +1476,25 @@ void uva::database::active_record_relation::commit(const std::string& sql)
             return;
         }
 
+        std::vector<uva::database::multiple_value_holder::value_type> columns_types;
+
         size_t colCount = sqlite3_column_count(stmt);
 
         for (int colIndex = 0; colIndex < colCount; colIndex++) {        
 
             std::string name = sqlite3_column_name(stmt, colIndex);
             m_columnsNames.push_back(name);
+
+            const char* type_c_str = sqlite3_column_decltype(stmt, colIndex);
+
+            //Assume text for any unknown type
+            if(!type_c_str) {
+                type_c_str = "TEXT";
+            }
+
+            std::string type_str = type_c_str;
+
+            columns_types.push_back(sql_delctype_to_value_type(type_str));
         }
 
         while (sqlite3_step(stmt) == SQLITE_ROW) {
@@ -1465,66 +1503,73 @@ void uva::database::active_record_relation::commit(const std::string& sql)
             for (int colIndex = 0; colIndex < colCount; colIndex++) {
 
                 uva::database::multiple_value_holder holder;
+
                 size_t type = sqlite3_column_type(stmt, colIndex);
 
-                switch (type)
+                if(type == SQLITE_NULL)
                 {
-                    case SQLITE_INTEGER:
-                    {
-                        int64_t value = sqlite3_column_int64(stmt, colIndex);
-                        holder = value;
+                    holder = null;
+                }
+                else
+                {
+                    uva::database::multiple_value_holder::value_type& value_type = columns_types[colIndex];
 
-                        break;
-                    }
-                    case SQLITE_FLOAT:
+                    switch (value_type)
                     {
-                        double value = sqlite3_column_double(stmt, colIndex);
-                        holder = value;
+                        case uva::database::multiple_value_holder::value_type::integer:
+                        {
+                            int64_t value = sqlite3_column_int64(stmt, colIndex);
+                            holder = value;
 
-                        break;
-                    }
-                    case SQLITE_NULL:
-                    {
-                        holder = null;
-
-                        break;
-                    }
-                    case SQLITE3_TEXT:
-                    {
-                        const unsigned char* value = sqlite3_column_text(stmt, colIndex);
-
-                        if(!value) {
-                            throw std::runtime_error("attempting to read null value");
+                            break;
                         }
-                        holder = value;
+                        case uva::database::multiple_value_holder::value_type::real:
+                        {
+                            double value = sqlite3_column_double(stmt, colIndex);
+                            holder = value;
 
-                        break;
+                            break;
+                        }
+                        case uva::database::multiple_value_holder::value_type::string:
+                        {
+                            const unsigned char* value = sqlite3_column_text(stmt, colIndex);
+
+                            if(!value) {
+                                throw std::runtime_error("attempting to read null string");
+                            }
+
+                            holder = value;
+
+                            break;
+                        }
                     }
+
                 }
 
-                cols.emplace_back(holder);
+
+                cols.push_back(std::move(holder));
             }
 
-            m_results.emplace_back(cols);
+            m_results.push_back(std::move(cols));
         }
-
-        //  Step, Clear and Reset the statement after each bind.
-        error = sqlite3_step(stmt);
-        error = sqlite3_clear_bindings(stmt);
-        error = sqlite3_reset(stmt);    
-
-        if (error) {        
-            //throw std::runtime_error(sqlite3_errmsg(m_database));
-        }
-
-        sqlite3_finalize(stmt);
-
-        if (error) {
-            //std::string error_report = error_msg;
-            //sqlite3_free(error_msg);
-            //throw std::runtime_error(""/*error_report*/);
-        }    
     });
+
+    //  Step, Clear and Reset the statement after each bind.
+    error = sqlite3_step(stmt);
+    error = sqlite3_clear_bindings(stmt);
+    error = sqlite3_reset(stmt);    
+
+    if (error) {        
+        //throw std::runtime_error(sqlite3_errmsg(m_database));
+    }
+
+    sqlite3_finalize(stmt);
+
+    if (error) {
+        //std::string error_report = error_msg;
+        //sqlite3_free(error_msg);
+        //throw std::runtime_error(""/*error_report*/);
+    }    
 
     uva::console::color_code color_code;
 

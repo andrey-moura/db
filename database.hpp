@@ -227,6 +227,10 @@ namespace uva
             multiple_value_holder& operator[](const size_t& i);
         };
 
+        extern std::map<std::string, multiple_value_holder::value_type> sql_values_types_map;
+
+        const multiple_value_holder::value_type& sql_delctype_to_value_type(const std::string& type);
+
         class active_record_relation
         {
         public:
