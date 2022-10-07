@@ -766,7 +766,7 @@ size_t uva::database::table::create(const std::map<std::string, uva::database::m
     auto relation = uva::database::active_record_relation(this).insert(keys_values.second).columns(keys_values.first).into(m_name).returning("id").unscoped();
     relation.commit_without_prepare(relation.to_sql());
 
-    return relation[0]["id"];
+    return relation[0]["id"].to_i();
 }
 
 void uva::database::table::create(std::vector<std::map<std::string, std::string>>& relations)
