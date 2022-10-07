@@ -956,6 +956,15 @@ const uva::database::multiple_value_holder& uva::database::basic_active_record::
     return at(std::string(str));
 }
 
+std::string uva::database::basic_active_record::to_s() const
+{
+    std::string joined_values = uva::string::join(uva::string::join(values, [](const std::pair<std::string, uva::database::multiple_value_holder> & v){
+        return std::format("{}={}", v.first, v.second.to_s());
+    }), ", ");
+
+    return std::format("<{}Class> {{ {} }}", class_name(), joined_values);
+}
+
 void uva::database::basic_active_record::save()
 {
     before_save();

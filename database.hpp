@@ -72,6 +72,11 @@ public:\
         values = other.values;\
         return *this;\
     }\
+    virtual const std::string& class_name() const override\
+    {\
+        static const std::string class_name = #record;\
+        return class_name;\
+    };\
 
 #define uva_database_define_full(record, __table_name, sufix) \
 uva::database::table* record::table() { \
@@ -383,6 +388,7 @@ namespace uva
             virtual table* get_table() = 0;
             virtual void before_save() { };
             virtual void before_update() { };
+            virtual const std::string& class_name() const = 0;
             std::map<std::string, multiple_value_holder> values;
         public:
             basic_active_record& operator=(const basic_active_record& other);
@@ -398,6 +404,9 @@ namespace uva
             const multiple_value_holder& operator[](const char* str) const;
             multiple_value_holder& operator[](const std::string& str);
             const multiple_value_holder& operator[](const std::string& str) const;
+        //debug
+        public:
+            std::string to_s() const;
         };
         
         class basic_migration : public basic_active_record
