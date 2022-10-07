@@ -40,11 +40,13 @@ public:\
     static record&& create(std::map<std::string, uva::database::multiple_value_holder>&& relations) {\
         record r(std::forward<std::map<std::string, uva::database::multiple_value_holder>>(relations)); \
         r.save();\
+        r = record::find_by("id={}", r["id"]);\
         return std::move(r);\
     } \
     static record&& create(const std::map<std::string, uva::database::multiple_value_holder>& relations) {\
         record r(relations); \
         r.save();\
+        r = record::find_by("id={}", r["id"]);\
         return std::move(r);\
     } \
     static void create(std::vector<std::map<std::string, std::string>>& relations) { table()->create(relations); } \
