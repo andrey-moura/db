@@ -1,5 +1,29 @@
 #include <database.hpp>
 
+// STATIC MEMBERS
+
+std::map<std::string, var::var_type> uva::database::sql_values_types_map 
+{
+    { "NULL", var::var_type::null_type },
+    { "TEXT", var::var_type::string },
+    { "INTEGER", var::var_type::integer },
+    { "REAL", var::var_type::real },
+};
+
+const var::var_type& uva::database::sql_delctype_to_value_type(const std::string& type)
+{
+    auto it = sql_values_types_map.find(type);
+
+    if(it != sql_values_types_map.end()) 
+    {
+        return it->second;
+    }
+
+    throw std::runtime_error(std::format("failed to convert from '{}' to value_type", type));
+}
+
+// END STATIC MEMBERS
+
 using basic_migration = uva::database::basic_migration;
 uva_database_define_full(basic_migration, "database_migration", "s");
 
@@ -446,7 +470,7 @@ size_t uva::database::table::create(const std::map<std::string, var>& relations)
     auto relation = uva::database::active_record_relation(this).insert(keys_values.second).columns(keys_values.first).into(m_name).returning("id").unscoped();
     relation.commit_without_prepare(relation.to_sql());
 
-    return relation[0]["id"];
+    return relation[0]["id"].to_i();
 }
 
 void uva::database::table::create(std::vector<std::map<std::string, var>>& relations)
@@ -551,8 +575,13 @@ std::vector<std::pair<std::string, std::string>>::const_iterator uva::database::
     return it;
 }
 
+void uva::database::table::update(size_t id, const std::map<std::string, var>& values)
+{
+    active_record_relation(this).unscoped().update(values).commit_without_prepare();
+}
+
 void uva::database::table::update(size_t id, const std::string& key, const std::string& value) {
-    
+    update(id, { { key, value } });
 }
 
 //END TABLE
@@ -565,7 +594,19 @@ uva::database::basic_active_record::basic_active_record(size_t _id)
 }
 
 uva::database::basic_active_record::basic_active_record(const basic_active_record& _record)
-    : id(_record.id)
+    : id(_record.id), values(_record.values)
+{
+
+}
+
+uva::database::basic_active_record::basic_active_record(basic_active_record&& _record)
+    :  id(_record.id), values(std::move(_record.values))
+{
+    _record.id = 0;
+}
+
+uva::database::basic_active_record::basic_active_record(const std::map<std::string, var>& _values)
+    : values(values)
 {
 
 }
@@ -576,9 +617,24 @@ uva::database::basic_active_record::basic_active_record(const std::map<std::stri
 
 }
 
+uva::database::basic_active_record::basic_active_record(std::map<std::string, var>&& _values)
+    : values(std::forward<std::map<std::string, var>>(_values))
+{
+
+}
+
 bool uva::database::basic_active_record::present() const {
-    bool present = !values.empty();
-    return present;
+    if (values.empty()) {
+        return false;
+    }
+
+    auto it = values.find("id");
+
+    if(it == values.end()) {
+        return false;
+    }
+
+    return it->second;
 }
 
 void uva::database::basic_active_record::destroy() {
@@ -586,15 +642,26 @@ void uva::database::basic_active_record::destroy() {
     id = -1;
 }
 
+uva::database::basic_active_record& uva::database::basic_active_record::operator=(const uva::database::basic_active_record& other)
+{
+    values = other.values;
+    id = other.id;
+    
+    return *this;
+}
+
 var& uva::database::basic_active_record::at(const std::string& str)
 {
-    auto it = values.find(str);
+    var& value = values[str];
+    return value;
 
-    if(it == values.end()) {
-        throw std::runtime_error(std::format("Record from {} has no column named {}", get_table()->m_name, str));
-    }
+    //return it->second;auto it = values.find(str);
 
-    return it->second;
+    // if(it == values.end()) {
+    //     throw std::runtime_error(std::format("Record from {} has no column named {}", get_table()->m_name, str));
+    // }
+
+    //return it->second;
 }
 
 const var& uva::database::basic_active_record::at(const std::string& str) const
@@ -626,18 +693,51 @@ const var& uva::database::basic_active_record::operator[](const char* str) const
     return at(std::string(str));
 }
 
+std::string uva::database::basic_active_record::to_s() const
+{
+    std::string joined_values = uva::string::join(uva::string::join(values, [](const std::pair<std::string, var> & v){
+        return std::format("{}={}", v.first, v.second.to_s());
+    }), ", ");
+
+    return std::format("<{}Class> {{ {} }}", class_name(), joined_values);
+}
+
 void uva::database::basic_active_record::save()
 {
-    auto relation = uva::database::active_record_relation(get_table());
-//     UPDATE table_name
-// SET column1 = value1, column2 = value2, ...
-// WHERE condition; 
-//     a   'll().where("id={}", at("id")).
+    before_save();
+    
+    auto it = values.find("id"); 
+
+    if(it == values.end() || it->second.is_null()) {
+       values["id"] = get_table()->create(values);
+    } else {
+        before_update();
+        get_table()->update(it->second, values);
+    }
 }
 
 void uva::database::basic_active_record::update(const std::string& col, const var& value)
 {
+    values[col] = value;
+    before_update();
 
+    uva::database::table* table = get_table();
+    table->update(values["id"], col, value);
+
+    before_save();
+}
+
+void uva::database::basic_active_record::update(const std::map<std::string, var>& _values)
+{
+    for(const auto& value : _values) {
+        values[value.first] = value.second;
+    }
+
+    before_update();
+    
+    get_table()->update(values["id"], _values);
+
+    before_save();
 }
 
 //END ACTIVE RECORD
@@ -829,7 +929,7 @@ size_t uva::database::active_record_relation::count(const std::string& count) co
             return 0;
         }
 
-        return *first_col;
+        return first_col->to_i();
 
     } catch(std::exception& e) {
 
@@ -1051,6 +1151,13 @@ void uva::database::active_record_relation::commit()
     commit(sql);
 }
 
+void uva::database::active_record_relation::commit_without_prepare()
+{
+    std::string sql = commit_sql();
+
+    commit_without_prepare(sql);
+}
+
 std::string uva::database::active_record_relation::to_sql() const
 {
     std::string sql = commit_sql();
@@ -1062,7 +1169,6 @@ void uva::database::active_record_relation::commit_without_prepare(const std::st
 {
     m_columnsNames.clear();
     m_columnsIndexes.clear();
-    m_columnsTypes.clear();
 
     sqlite3_connection* connection = (sqlite3_connection*)uva::database::basic_connection::get_connection();
 
@@ -1135,19 +1241,19 @@ void uva::database::active_record_relation::commit(const std::string& sql)
 {
     m_columnsNames.clear();
     m_columnsIndexes.clear();
-    m_columnsTypes.clear();
 
     std::string error_report;
 
-    auto elapsed = uva::diagnostics::measure_function([&] {
+    sqlite3_stmt* stmt;
+    int error = 0;
+    char* error_msg = nullptr;
 
-        sqlite3_stmt* stmt;
+    auto elapsed = uva::diagnostics::measure_function([&] {
 
         sqlite3_connection* connection = (sqlite3_connection*)uva::database::basic_connection::get_connection();
 
-        int error = sqlite3_prepare_v2(connection->get_database(), sql.c_str(), (int)sql.size(), &stmt, nullptr);
+        error = sqlite3_prepare_v2(connection->get_database(), sql.c_str(), (int)sql.size(), &stmt, nullptr);
 
-        char* error_msg = nullptr;
 
         if(error) {
             error_msg = (char*)sqlite3_errmsg(connection->get_database());
@@ -1158,95 +1264,100 @@ void uva::database::active_record_relation::commit(const std::string& sql)
             return;
         }
 
+        std::vector<var::var_type> columns_types;
+
         size_t colCount = sqlite3_column_count(stmt);
 
         for (int colIndex = 0; colIndex < colCount; colIndex++) {        
 
             std::string name = sqlite3_column_name(stmt, colIndex);
-            const char* t = sqlite3_column_decltype(stmt, colIndex);
-
-            if(t == nullptr) {
-                if(name.starts_with("COUNT")) {
-                    t = "INTEGER";
-                }
-            }
-
-            std::string type = t ? t : "TEXT";
-
             m_columnsNames.push_back(name);
-            m_columnsIndexes.insert({name, colIndex});
 
-            var::var_type value_type;
+            const char* type_c_str = sqlite3_column_decltype(stmt, colIndex);
 
-            if(type == "TEXT" || type.starts_with("NVARCHAR")) {
-                value_type = var::var_type::string;
-            } else if(type == "REAL") {
-                value_type = var::var_type::real;
-            }
-            else {
-                value_type = var::var_type::integer;
+            //Assume text for any unknown type
+            if(!type_c_str) {
+                type_c_str = "TEXT";
             }
 
-            m_columnsTypes.push_back(value_type);
+            std::string type_str = type_c_str;
+
+            columns_types.push_back(sql_delctype_to_value_type(type_str));
         }
 
         while (sqlite3_step(stmt) == SQLITE_ROW) {
-            auto current_col = m_columnsTypes.begin();
             std::vector<var> cols;
 
             for (int colIndex = 0; colIndex < colCount; colIndex++) {
 
                 var holder;
-                holder.type = *current_col;
 
-                switch (*current_col)
+                size_t type = sqlite3_column_type(stmt, colIndex);
+
+                if(type == SQLITE_NULL)
                 {
+                    holder = null;
+                }
+                else
+                {
+                    var::var_type& value_type = columns_types[colIndex];
 
-                    case var::var_type::string: {
-                        const unsigned char* value = sqlite3_column_text(stmt, colIndex);
-                        if(!value) {
-                            value = (const unsigned char*)"";
+                    switch (value_type)
+                    {
+                        case var::var_type::integer:
+                        {
+                            int64_t value = sqlite3_column_int64(stmt, colIndex);
+                            holder = value;
+
+                            break;
                         }
-                        holder = value;
+                        case var::var_type::real:
+                        {
+                            double value = sqlite3_column_double(stmt, colIndex);
+                            holder = value;
+
+                            break;
+                        }
+                        case var::var_type::string:
+                        {
+                            const unsigned char* value = sqlite3_column_text(stmt, colIndex);
+
+                            if(!value) {
+                                throw std::runtime_error("attempting to read null string");
+                            }
+
+                            holder = value;
+
+                            break;
+                        }
                     }
-                    break;
-                    case var::var_type::integer: {
-                        int64_t value = sqlite3_column_int64(stmt, colIndex);
-                        holder = value;
-                    }
-                    break;
-                    case var::var_type::real: {
-                        double value = sqlite3_column_double(stmt, colIndex);
-                        holder = value;
-                    }
-                    break;
+
                 }
 
-                cols.emplace_back(holder);
 
-                current_col++;
+                cols.push_back(std::move(holder));
             }
 
-            m_results.emplace_back(cols);
+            m_results.push_back(std::move(cols));
         }
-
-        //  Step, Clear and Reset the statement after each bind.
-        error = sqlite3_step(stmt);
-        error = sqlite3_clear_bindings(stmt);
-        error = sqlite3_reset(stmt);    
-
-        if (error) {        
-            //throw std::runtime_error(sqlite3_errmsg(m_database));
-        }
-
-        sqlite3_finalize(stmt);
-
-        if (error) {
-            //std::string error_report = error_msg;
-            //sqlite3_free(error_msg);
-            //throw std::runtime_error(""/*error_report*/);
-        }    
     });
+
+    //  Step, Clear and Reset the statement after each bind.
+    error = sqlite3_step(stmt);
+    error = sqlite3_clear_bindings(stmt);
+    error = sqlite3_reset(stmt);    
+
+    if (error) {        
+        //throw std::runtime_error(sqlite3_errmsg(m_database));
+    }
+
+    sqlite3_finalize(stmt);
+
+    if (error) {
+        //std::string error_report = error_msg;
+        //sqlite3_free(error_msg);
+        //throw std::runtime_error(""/*error_report*/);
+    }    
 
     uva::console::color_code color_code;
 
@@ -1360,9 +1471,8 @@ void uva::database::basic_migration::do_pending_migrations()
 
 void uva::database::basic_migration::apply()
 {
-    size_t id = create({
-        { "title",   title }
-    });
+    at("title") = title;
+    save();
 }
 
 void uva::database::basic_migration::add_table(const std::string& table_name, const std::vector<std::pair<std::string, std::string>>& cols)

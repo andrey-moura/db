@@ -1,6 +1,6 @@
 # database
 
-Pretty simple cross-platform library based in the ActiveRecord from Ruby, for queryging and writing, an wrapper around SQL.
+Simple cross-platform library based in the ActiveRecord from Ruby, an wrapper around SQL.
 
 ## Building 
 
@@ -14,7 +14,7 @@ cmake ..
 make
 ```
 
-## Usage
+## Basic Usage
 
 ```cpp
 #include <database.hpp>
@@ -25,11 +25,9 @@ class User : public uva::database::basic_active_record
     uva_database_declare(User)
 };
 
-uva_database_define_sqlite3(User, uva_database_params(
-{
-    { "name", "TEXT" },
-    { "email", "TEXT" },
-}), std::filesystem::absolute("database") / "database.db");
+uva_database_define(User);
+
+uva_database_define_sqlite3("database.db");
 
 int main()
 {
@@ -46,6 +44,50 @@ int main()
     return 0;
 }
 ```
+
+### Creating a new table
+
+```cpp
+
+#include <database.hpp>
+
+class AddUsersMigration : public uva::database::basic_migration
+{
+uva_declare_migration(AddUsersMigration);
+protected:
+    virtual void change() override
+    {
+        add_table("users",
+        {
+            { "name",        "TEXT NOT NULL" },
+            { "permissions", "TEXT" },
+            { "password",    "TEXT NOT NULL" },
+        });
+    }
+};
+
+uva_define_migration(AddUsersMigration);
+
+```
+
+### Supported database engines
+
+* SQLite3
+
+### Todo For Next (First) Release
+
+* Before save, update 👌
+* Create database tool
+* Move multiple_value_holder to uva::string
+* Create database_exception
+* Strongly typed multiple_value_holder
+* Complete Todo List of [uva::string](https://github.com/Moonslate/string)
+* Complete Todo List of [uva::cspec](https://github.com/Moonslate/cspec)
+* Have 100% of tests coverage
+
+### Priority (For future releases)
+
+* 🐞 - Copy constructor of base class not works
 
 ## Contributing
 Just make a PR! :)
