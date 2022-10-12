@@ -108,7 +108,7 @@ cspec_describe("uva::database",
         })
 
         it("should pluck last 5 products.name", [](){
-            std::vector<uva::database::multiple_value_holder> values = Product::all().order_by("id desc").limit(5).pluck("name");
+            std::vector<var> values = Product::all().order_by("id desc").limit(5).pluck("name");
 
             expect(values).to eq(std::vector<std::string>({
                 "Deer", "Notebook", "Mobile Phone", "Book", "Perfume"

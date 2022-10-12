@@ -3,6 +3,8 @@
 using basic_migration = uva::database::basic_migration;
 uva_database_define_full(basic_migration, "database_migration", "s");
 
+size_t uva::database::query_buffer_lenght = uva::database::query_buffer_lenght_default;
+
 //BASIC CONNECTION
 
 uva::database::basic_connection* uva::database::basic_connection::s_connection = nullptr;
@@ -354,245 +356,6 @@ void uva::database::sqlite3_connection::change_column(uva::database::table* tabl
 
 //END SQLITE3 CONNECTION
 
-//MULTIPLE_VALUE_HOLDER
-
-uva::database::multiple_value_holder::multiple_value_holder(uva::database::multiple_value_holder&& other)
-    : type(other.type), str(std::move(other.str)), integer(other.integer), real(other.real), array(std::move(other.array))
-{
-
-}
-
-uva::database::multiple_value_holder::multiple_value_holder(const uint64_t& _integer)
-    : integer(_integer), type(uva::database::multiple_value_holder::value_type::integer)
-{
-
-}
-
-uva::database::multiple_value_holder::multiple_value_holder(const int& _integer)
-    : integer(_integer), type(uva::database::multiple_value_holder::value_type::integer)
-{
-
-}
-
-uva::database::multiple_value_holder::multiple_value_holder(const time_t& _integer)
-    : integer(_integer), type(uva::database::multiple_value_holder::value_type::integer)
-{
-
-}
-
-
-uva::database::multiple_value_holder::multiple_value_holder(const std::string& _str)
-    : str(_str), type(uva::database::multiple_value_holder::value_type::string)
-{
-
-}
-
-uva::database::multiple_value_holder::multiple_value_holder(const char* _str)
-    : str(_str), type(uva::database::multiple_value_holder::value_type::string)
-{
-
-}
-
-uva::database::multiple_value_holder::multiple_value_holder(const bool& boolean)
-    : integer(boolean), type(uva::database::multiple_value_holder::value_type::integer)
-{
-
-}
-
-uva::database::multiple_value_holder::multiple_value_holder(const double& d)
-    : real(d), type(uva::database::multiple_value_holder::value_type::real)
-{
-    
-}
-
-std::string uva::database::multiple_value_holder::to_s() const
-{
-    switch(type)
-    {
-        case value_type::string:
-            return str;
-        break;
-        case value_type::integer:
-            return std::to_string(integer);
-        case value_type::real:
-            return std::format("{}", real);
-        break;
-    }
-
-    throw std::runtime_error(std::format("failed to convert from (value_type){} to string", (size_t)type));
-    return "";
-}
-
-int64_t uva::database::multiple_value_holder::to_i() const
-{
-    switch(type)
-    {
-        case value_type::string:
-        {
-            std::string string = str;
-            bool negative = false;
-
-            if(string.starts_with('-')) {
-                negative = true;
-                string.erase(0);
-            }
-
-            for(const char& c : string) {
-                if(!isdigit(c)) {
-                    throw std::runtime_error(std::format("invalid character '{}' in string \"{}\" while converting to integer", c, str));
-                }
-            }
-
-            int64_t _integer = std::stoll(string);
-            if(negative) {
-                _integer *= -1;
-            }
-
-            return _integer;
-        }
-        break;
-        case value_type::real:
-            return (int)real;
-        break;
-        case value_type::integer:
-            return integer;
-        break;
-    }
-
-    throw std::runtime_error(std::format("failed to convert from (value_type){} to integer", (size_t)type));
-    return -1;
-}
-
-uva::database::multiple_value_holder::operator int() const
-{
-    return (int)integer;
-}
-
-uva::database::multiple_value_holder::operator uint64_t() const
-{
-    return (uint64_t)integer;
-}
-
-uva::database::multiple_value_holder::operator int64_t() const
-{
-    return (int64_t)integer;
-}
-
-uva::database::multiple_value_holder::operator std::string() const
-{
-    return str;
-}
-
-uva::database::multiple_value_holder::operator bool() const
-{
-    return (bool)integer;
-}
-
-uva::database::multiple_value_holder::operator double() const
-{
-    return real;
-}
-
-uva::database::multiple_value_holder& uva::database::multiple_value_holder::operator=(const char* c)
-{
-    str = c;
-    type = uva::database::multiple_value_holder::value_type::string;
-    return *this;
-}
-
-uva::database::multiple_value_holder& uva::database::multiple_value_holder::operator=(const unsigned char* c)
-{
-    str = (char*)c;
-    type = uva::database::multiple_value_holder::value_type::string;
-    return *this;
-}
-
-uva::database::multiple_value_holder& uva::database::multiple_value_holder::operator=(const uint64_t& i)
-{
-    integer = (int64_t)i;
-    type = uva::database::multiple_value_holder::value_type::integer;
-    return *this;
-}
-
-uva::database::multiple_value_holder& uva::database::multiple_value_holder::operator=(const int64_t& i)
-{
-    integer = i;
-    type = uva::database::multiple_value_holder::value_type::integer;
-    return *this;
-}
-
-uva::database::multiple_value_holder& uva::database::multiple_value_holder::operator=(const std::string& s)
-{
-    str = s;
-    type = uva::database::multiple_value_holder::value_type::string;
-    return *this;
-}
-
-uva::database::multiple_value_holder& uva::database::multiple_value_holder::operator=(const bool& b)
-{
-    integer = (int64_t)b;
-    type = uva::database::multiple_value_holder::value_type::integer;
-    return *this;
-}
-
-uva::database::multiple_value_holder& uva::database::multiple_value_holder::operator=(const double& d)
-{
-    real = d;
-    type = uva::database::multiple_value_holder::value_type::real;
-    return *this;
-}
-
-uva::database::multiple_value_holder& uva::database::multiple_value_holder::operator=(const multiple_value_holder& other)
-{
-    switch(other.type) {
-        case value_type::integer:
-            integer = other.integer;
-            break;
-        case value_type::string:
-            str = other.str;
-            break;
-    }
-    type = other.type;
-    return *this;
-}
-
-bool uva::database::multiple_value_holder::operator==(const double& d) const
-{
-    return d == real;
-}
-
-bool uva::database::multiple_value_holder::operator==(const std::string& s) const
-{
-    return str == s;
-}
-
-bool uva::database::multiple_value_holder::operator!=(const std::string& s) const
-{
-    return str != s;
-}
-
-bool uva::database::multiple_value_holder::operator==(const bool& b) const
-{
-    return b == (bool)integer;
-}
-
-bool uva::database::multiple_value_holder::operator<(const double& d) const
-{
-    return real < d;
-}
-
-const uva::database::multiple_value_holder& uva::database::multiple_value_holder::operator[](const size_t& i) const
-{
-    return array[i];
-}
-
-uva::database::multiple_value_holder& uva::database::multiple_value_holder::operator[](const size_t& i)
-{
-    return array[i];
-}
-
-//END MULTIPLE_VALUE_HOLDER
-
 std::string& uva::database::table::at(size_t id, const std::string& key) {
     auto it = m_relations.find(id);
 
@@ -676,7 +439,7 @@ uva::database::table* uva::database::table::get_table(const std::string& name) {
     return it->second;
 }
 
-size_t uva::database::table::create(const std::map<std::string, uva::database::multiple_value_holder>& relations)
+size_t uva::database::table::create(const std::map<std::string, var>& relations)
 {
     auto keys_values = uva::string::split(relations);
 
@@ -686,13 +449,40 @@ size_t uva::database::table::create(const std::map<std::string, uva::database::m
     return relation[0]["id"];
 }
 
-void uva::database::table::create(std::vector<std::map<std::string, std::string>>& relations)
+void uva::database::table::create(std::vector<std::map<std::string, var>>& relations)
 {
-    size_t id = 1;
-    auto last = m_relations.rbegin();
-    if (last != m_relations.rend()) {
-        id = last->first + 1;
+    std::vector<std::string> keys;
+    std::vector<var> values;
+
+    for(auto& row : relations)
+    {
+        auto keys_values = uva::string::split(row);
+        row.clear();
+
+        if(keys.empty()) {
+            keys = keys_values.first;
+        } else {
+            #if _UVA_DEBUG_LEVEL_ > 3
+                bool keys_match = keys.size() == keys_values.first.size() && std::equal(keys.begin(), keys.end(), keys_values.first.begin());
+
+                if(!keys_match) {
+                    throw std::runtime_error("Wrong number of arguments");
+                    return;
+                }
+            #endif
+        }
+
+        values.insert(values.end(), keys_values.second.begin(), keys_values.second.end());
     }
+
+    auto relation = uva::database::active_record_relation(this).insert(values).columns(keys).into(m_name).unscoped();
+    relation.commit_without_prepare(relation.to_sql());
+}
+
+void uva::database::table::create(std::vector<std::vector<var>>& values, const std::vector<std::string>& columns)
+{
+    auto relation = uva::database::active_record_relation(this).insert(values).columns(columns).into(m_name).unscoped();
+    relation.commit_without_prepare(relation.to_sql());
 }
 
 size_t uva::database::table::create() {
@@ -780,7 +570,7 @@ uva::database::basic_active_record::basic_active_record(const basic_active_recor
 
 }
 
-uva::database::basic_active_record::basic_active_record(const std::map<std::string, uva::database::multiple_value_holder>& value)
+uva::database::basic_active_record::basic_active_record(const std::map<std::string, var>& value)
     : values(value)
 {
 
@@ -796,7 +586,7 @@ void uva::database::basic_active_record::destroy() {
     id = -1;
 }
 
-uva::database::multiple_value_holder& uva::database::basic_active_record::at(const std::string& str)
+var& uva::database::basic_active_record::at(const std::string& str)
 {
     auto it = values.find(str);
 
@@ -807,7 +597,7 @@ uva::database::multiple_value_holder& uva::database::basic_active_record::at(con
     return it->second;
 }
 
-const uva::database::multiple_value_holder& uva::database::basic_active_record::at(const std::string& str) const
+const var& uva::database::basic_active_record::at(const std::string& str) const
 {
     auto it = values.find(str);
 
@@ -818,20 +608,20 @@ const uva::database::multiple_value_holder& uva::database::basic_active_record::
     return it->second;
 }
 
-uva::database::multiple_value_holder& uva::database::basic_active_record::operator[](const std::string& str) {
+var& uva::database::basic_active_record::operator[](const std::string& str) {
     return at(str);
 }
 
-const uva::database::multiple_value_holder& uva::database::basic_active_record::operator[](const std::string& str) const {
+const var& uva::database::basic_active_record::operator[](const std::string& str) const {
     return at(str);
 }
 
-uva::database::multiple_value_holder& uva::database::basic_active_record::operator[](const char* str)
+var& uva::database::basic_active_record::operator[](const char* str)
 {
     return at(std::string(str));
 }
 
-const uva::database::multiple_value_holder& uva::database::basic_active_record::operator[](const char* str) const
+const var& uva::database::basic_active_record::operator[](const char* str) const
 {
     return at(std::string(str));
 }
@@ -845,7 +635,7 @@ void uva::database::basic_active_record::save()
 //     a   'll().where("id={}", at("id")).
 }
 
-void uva::database::basic_active_record::update(const std::string& col, const uva::database::multiple_value_holder& value)
+void uva::database::basic_active_record::update(const std::string& col, const var& value)
 {
 
 }
@@ -865,7 +655,7 @@ uva::database::active_record_relation::active_record_relation(uva::database::tab
     
 }
 
-uva::database::active_record_relation& uva::database::active_record_relation::update(const std::map<std::string, multiple_value_holder>& update)
+uva::database::active_record_relation& uva::database::active_record_relation::update(const std::map<std::string, var>& update)
 {
     m_update = update;
 
@@ -912,41 +702,49 @@ uva::database::active_record_relation& uva::database::active_record_relation::li
     return *this;
 }
 
-uva::database::active_record_relation& uva::database::active_record_relation::insert(std::vector<uva::database::multiple_value_holder>& insert)
+uva::database::active_record_relation& uva::database::active_record_relation::insert(std::vector<var>& insert)
 {
-    for(auto& holder : insert) {
-        if(holder.type == uva::database::multiple_value_holder::value_type::string) {
-            std::string str;
-            str.reserve(holder.str.size()+2);
-            str.push_back('\'');
-
-            for(const char& c : holder.str)
-            {
-                str.push_back(c);
-                if(c == '\'') {
-                    str.push_back('\'');
-                }
-            }
-
-
-            str.push_back('\'');
-            holder.str = str;
-        }
-    }
-
     m_insert.push_back(insert);
+    // std::stringstream ss;
+
+    // for(size_t i = 0; i < insert.size(); ++i) {
+
+    //     if(insert[i].type == var::var_type::string) {
+
+    //         ss << '\'';
+
+    //         for(const char& c : insert[i].str)
+    //         {
+    //             ss << c;
+                
+    //             if(c == '\'') {
+    //                 ss << '\'';
+    //             }
+    //         }
+
+    //         ss << '\'';
+    //     } else {
+    //         ss << insert[i].to_s();
+    //     }
+
+    //    if(i < insert.size() - 1) ss << ',';
+    // }
+
+    // m_insert = ss.str();
 
     return *this;
 }
 
-uva::database::active_record_relation& uva::database::active_record_relation::insert(std::vector<std::vector<uva::database::multiple_value_holder>>& _insert)
+uva::database::active_record_relation& uva::database::active_record_relation::insert(std::vector<std::vector<var>>& _insert)
 {
-    m_insert.reserve(_insert.size());
+    //m_insert.reserve(_insert.size());
 
-    for(auto& values : _insert)
-    {
-        insert(values);
-    }
+    //for(auto& values : _insert)
+    //{
+        //insert(values);
+    //}
+
+    m_insert = _insert;
 
     return *this;
 }
@@ -969,9 +767,9 @@ uva::database::active_record_relation& uva::database::active_record_relation::re
     return *this;
 }
 
-std::vector<uva::database::multiple_value_holder> uva::database::active_record_relation::pluck(const std::string& col)
+std::vector<var> uva::database::active_record_relation::pluck(const std::string& col)
 {
-    std::vector<uva::database::multiple_value_holder> values;
+    std::vector<var> values;
 
     uva::database::active_record_relation rel = *this;
 
@@ -986,8 +784,8 @@ std::vector<uva::database::multiple_value_holder> uva::database::active_record_r
         if(value.size() == 1) {
             values.push_back(std::move(value[0]));
         } else if(value.size() > 1) {
-            uva::database::multiple_value_holder v;
-            v.type = uva::database::multiple_value_holder::value_type::array;
+            var v;
+            v.type = var::var_type::array;
             v.array = std::move(value);
 
             values.push_back(std::move(v));
@@ -997,9 +795,9 @@ std::vector<uva::database::multiple_value_holder> uva::database::active_record_r
     return values;
 }
 
-std::vector<std::vector<uva::database::multiple_value_holder>> uva::database::active_record_relation::pluckm(const std::string& cols)
+std::vector<std::vector<var>> uva::database::active_record_relation::pluckm(const std::string& cols)
 {
-    std::vector<std::vector<uva::database::multiple_value_holder>> values;
+    std::vector<std::vector<var>> values;
 
     uva::database::active_record_relation rel = *this;
 
@@ -1040,7 +838,7 @@ size_t uva::database::active_record_relation::count(const std::string& count) co
     return 0;
 }
 
-std::map<std::string, uva::database::multiple_value_holder> uva::database::active_record_relation::first()
+std::map<std::string, var> uva::database::active_record_relation::first()
 {
     uva::database::active_record_relation first_relation = *this;
 
@@ -1051,13 +849,13 @@ std::map<std::string, uva::database::multiple_value_holder> uva::database::activ
     first_relation.limit(1);
 
     if(first_relation.empty()) {
-        return std::map<std::string, uva::database::multiple_value_holder>();
+        return std::map<std::string, var>();
     }
 
     return first_relation[0];
 }
 
-void uva::database::active_record_relation::each_with_index(std::function<void(std::map<std::string, uva::database::multiple_value_holder>& value, const size_t&)> func)
+void uva::database::active_record_relation::each_with_index(std::function<void(std::map<std::string, var>& value, const size_t&)> func)
 {
     size_t index = 0;
     size_t last_id = 0;
@@ -1083,9 +881,9 @@ void uva::database::active_record_relation::each_with_index(std::function<void(s
     }
 }
 
-void uva::database::active_record_relation::each(std::function<void(std::map<std::string, uva::database::multiple_value_holder>&)> func)
+void uva::database::active_record_relation::each(std::function<void(std::map<std::string, var>&)> func)
 {
-    each_with_index([&](std::map<std::string, uva::database::multiple_value_holder>& value, const size_t& index){
+    each_with_index([&](std::map<std::string, var>& value, const size_t& index){
         func(value);
     });
 }
@@ -1096,9 +894,9 @@ bool uva::database::active_record_relation::empty()
     return m_results.empty();
 }
 
-std::map<std::string, uva::database::multiple_value_holder> uva::database::active_record_relation::operator[](const size_t& index)
+std::map<std::string, var> uva::database::active_record_relation::operator[](const size_t& index)
 {
-    std::map<std::string, uva::database::multiple_value_holder> result;
+    std::map<std::string, var> result;
 
     auto row = m_results[index];
 
@@ -1131,17 +929,20 @@ void uva::database::active_record_relation::append_where(const std::string& wher
     }
 }
 
+std::string sql_buffer;
+
 std::string uva::database::active_record_relation::commit_sql() const
 {
-    std::string sql = "";
+    sql_buffer.clear();
+    sql_buffer.reserve(query_buffer_lenght); 
 
     if(m_update.size()) {
-        sql += "UPDATE " + m_table->m_name + " SET ";
+        sql_buffer += "UPDATE " + m_table->m_name + " SET ";
 
-        sql += uva::string::join(
+        sql_buffer += uva::string::join(
             uva::string::join(m_update, [](const auto& val) {
                 std::string val_str = val.second.to_s();
-                if(val.second.type == uva::database::multiple_value_holder::value_type::string) {
+                if(val.second.type == var::var_type::string) {
                     val_str = uva::string::prefix_sufix(val_str, "'", "'");
                 }
                 return std::format("{}={}", val.first, val_str);
@@ -1150,64 +951,97 @@ std::string uva::database::active_record_relation::commit_sql() const
     }
 
     if(m_select.size()) {
-        sql += "SELECT " + m_select;
+        sql_buffer += "SELECT " + m_select;
     }
 
     if(m_from.size()) {
-        sql += " FROM " + m_from;
+        sql_buffer += " FROM " + m_from;
     }
 
     if(m_where.size()) {
-        sql += " WHERE " + m_where;
+        sql_buffer += " WHERE " + m_where;
     }
 
     if(!m_unscoped) {
-        sql += (m_where.size() ? " AND " : " WHERE ") + (std::string)"removed = 0";
+        sql_buffer += (m_where.size() ? " AND " : " WHERE ") + (std::string)"removed = 0";
     }
 
     if(m_order.size()) {
-        sql += " ORDER BY " + m_order;
+        sql_buffer += " ORDER BY " + m_order;
     }
 
     if(m_limit.size()) {
-        sql += " LIMIT " + m_limit;
+        sql_buffer += " LIMIT " + m_limit;
     }
 
     if(m_insert.size()) {
-        sql += " INSERT INTO " + m_into || m_from || m_table->m_name;
+        sql_buffer += " INSERT INTO ";
+        sql_buffer += m_into || m_from || m_table->m_name;
 
         if(m_columns.size())
         {
-            sql += "(";
+            sql_buffer += "(";
 
-            sql += uva::string::join(m_columns, ',');
+            sql_buffer += uva::string::join(m_columns, ',');
 
-            sql += ")";
+            sql_buffer += ")";
         }
 
-        sql += " VALUES ";
+        sql_buffer += " VALUES ";
+
         for(size_t i = 0; i < m_insert.size(); ++i)
         {
-            sql  += "(";
+            sql_buffer.push_back('(');
 
-            sql += uva::string::join(m_insert[i], ',');
+            for(size_t x = 0; x < m_insert[i].size(); ++x)
+            {
+                if(m_insert[i][x].type == var::var_type::string)
+                {
+                    sql_buffer.push_back('\'');
+                        for(const char& c : m_insert[i][x].str)
+                        {
+                            sql_buffer.push_back(c);
+                            if(c == '\'')
+                            {
+                                sql_buffer.push_back(c);
+                            }
+                        }
+                    sql_buffer.push_back('\'');
+                } else {
+                    sql_buffer += m_insert[i][x].to_s();
+                }
 
-            sql += ")";
+                if(x < m_insert[i].size()-1)
+                {
+                    sql_buffer.push_back(',');
+                }
+            }
 
-            if(i < m_insert.size()-1) {
-                sql += ", ";
+            sql_buffer.push_back(')');
+
+            if(i < m_insert.size()-1)
+            {
+                sql_buffer.push_back(',');
             }
         }
     }
 
     if(m_returning.size())
     {
-        sql += " RETURNING " + m_returning;
+        sql_buffer += " RETURNING ";
+        sql_buffer += m_returning;
     }
 
-    sql += ";";
+    sql_buffer += ";";
 
-    return sql;
+#ifndef _NDEBUG
+    if(sql_buffer.size() > query_buffer_lenght)
+    {
+        uva::console::log_warning("Query string is bigger than buffer lenght ({} vs {}). Consider to increase query_buffer_lenght to get better performance.", sql_buffer.size(), query_buffer_lenght);
+    }
+#endif
+
+    return sql_buffer;
 }
 
 void uva::database::active_record_relation::commit()
@@ -1247,7 +1081,7 @@ void uva::database::active_record_relation::commit_without_prepare(const std::st
         error = sqlite3_exec(connection->get_database(), sql.c_str(), [](void *pdata, int columnCount, char **columnValue, char **columnNames) {
 
         callback_data* data = (callback_data*)pdata;
-        std::vector<uva::database::multiple_value_holder> cols;
+        std::vector<var> cols;
 
         for(size_t i = 0; i < columnCount; ++i) {
 
@@ -1257,7 +1091,7 @@ void uva::database::active_record_relation::commit_without_prepare(const std::st
                 data->self->m_columnsNames.push_back(colName);
                 data->self->m_columnsIndexes.insert({colName, i});
 
-                data->self->m_columnsTypes.push_back(uva::database::multiple_value_holder::value_type::string);
+                data->self->m_columnsTypes.push_back(var::var_type::string);
             }
         
             data->firstCalback = false;
@@ -1342,15 +1176,15 @@ void uva::database::active_record_relation::commit(const std::string& sql)
             m_columnsNames.push_back(name);
             m_columnsIndexes.insert({name, colIndex});
 
-            uva::database::multiple_value_holder::value_type value_type;
+            var::var_type value_type;
 
             if(type == "TEXT" || type.starts_with("NVARCHAR")) {
-                value_type = uva::database::multiple_value_holder::value_type::string;
+                value_type = var::var_type::string;
             } else if(type == "REAL") {
-                value_type = uva::database::multiple_value_holder::value_type::real;
+                value_type = var::var_type::real;
             }
             else {
-                value_type = uva::database::multiple_value_holder::value_type::integer;
+                value_type = var::var_type::integer;
             }
 
             m_columnsTypes.push_back(value_type);
@@ -1358,17 +1192,17 @@ void uva::database::active_record_relation::commit(const std::string& sql)
 
         while (sqlite3_step(stmt) == SQLITE_ROW) {
             auto current_col = m_columnsTypes.begin();
-            std::vector<uva::database::multiple_value_holder> cols;
+            std::vector<var> cols;
 
             for (int colIndex = 0; colIndex < colCount; colIndex++) {
 
-                uva::database::multiple_value_holder holder;
+                var holder;
                 holder.type = *current_col;
 
                 switch (*current_col)
                 {
 
-                    case uva::database::multiple_value_holder::value_type::string: {
+                    case var::var_type::string: {
                         const unsigned char* value = sqlite3_column_text(stmt, colIndex);
                         if(!value) {
                             value = (const unsigned char*)"";
@@ -1376,12 +1210,12 @@ void uva::database::active_record_relation::commit(const std::string& sql)
                         holder = value;
                     }
                     break;
-                    case uva::database::multiple_value_holder::value_type::integer: {
+                    case var::var_type::integer: {
                         int64_t value = sqlite3_column_int64(stmt, colIndex);
                         holder = value;
                     }
                     break;
-                    case uva::database::multiple_value_holder::value_type::real: {
+                    case var::var_type::real: {
                         double value = sqlite3_column_double(stmt, colIndex);
                         holder = value;
                     }
