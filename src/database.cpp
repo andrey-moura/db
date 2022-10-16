@@ -1461,6 +1461,11 @@ std::vector<uva::database::basic_migration*>& uva::database::basic_migration::ge
 void uva::database::basic_migration::do_pending_migrations()
 {
     std::vector<uva::database::basic_migration*>& migrations = uva::database::basic_migration::get_migrations();
+
+    std::sort(migrations.begin(), migrations.end(), [](const uva::database::basic_migration& lhs, const uva::database::basic_migration& rhs){
+        return lhs.title < rhs.title;
+    });
+
     for(uva::database::basic_migration* migration : migrations)
     {
         if(migration->is_pending()) {
