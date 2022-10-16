@@ -611,12 +611,6 @@ uva::database::basic_active_record::basic_active_record(const std::map<std::stri
 
 }
 
-uva::database::basic_active_record::basic_active_record(const std::map<std::string, var>& value)
-    : values(value)
-{
-
-}
-
 uva::database::basic_active_record::basic_active_record(std::map<std::string, var>&& _values)
     : values(std::forward<std::map<std::string, var>>(_values))
 {
@@ -1343,9 +1337,12 @@ void uva::database::active_record_relation::commit(const std::string& sql)
     });
 
     //  Step, Clear and Reset the statement after each bind.
-    error = sqlite3_step(stmt);
-    error = sqlite3_clear_bindings(stmt);
-    error = sqlite3_reset(stmt);    
+
+    if(stmt) {
+        error = sqlite3_step(stmt);
+        error = sqlite3_clear_bindings(stmt);
+        error = sqlite3_reset(stmt);    
+    }
 
     if (error) {        
         //throw std::runtime_error(sqlite3_errmsg(m_database));

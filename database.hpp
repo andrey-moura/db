@@ -21,8 +21,6 @@
 //     other.id = 0;\
 // }\
 
-#define null var()
-
 #define UVA_DATABASE_AVAILABLE
 
 #define uva_database_params(...) __VA_ARGS__ 
@@ -38,19 +36,19 @@ public:\
     uva::database::table* get_table() override { return table(); } \
     static uva::database::table* table(); \
     static size_t create() { return table()->create(); } \
-    static record&& create(std::map<std::string, var>&& relations) {\
+    static record create(std::map<std::string, var>&& relations) {\
         record r(std::forward<std::map<std::string, var>>(relations)); \
         r.save();\
         r = record::find_by("id={}", r["id"]);\
-        return std::move(r);\
+        return r;\
     } \
-    static record&& create(const std::map<std::string, var>& relations) {\
+    static record create(const std::map<std::string, var>& relations) {\
         record r(relations); \
         r.save();\
         r = record::find_by("id={}", r["id"]);\
-        return std::move(r);\
+        return r;\
     } \
-    static void create(std::vector<std::map<std::string, std::string>>& relations) { table()->create(relations); } \
+    static void create(std::vector<std::map<std::string, var>>& relations) { table()->create(relations); } \
     static size_t column_count() { return table()->m_columns.size(); } \
     static std::vector<std::pair<std::string, std::string>>& columns() { return table()->m_columns; } \
     static uva::database::active_record_relation all() { return uva::database::active_record_relation(table()).select("*").from(table()->m_name);  } \
