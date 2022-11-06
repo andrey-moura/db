@@ -22,12 +22,28 @@ const var::var_type& uva::database::sql_delctype_to_value_type(const std::string
     throw std::runtime_error(std::format("failed to convert from '{}' to value_type", type));
 }
 
+
+void uva::database::within_transaction(std::function<void()> __f)
+{
+    uva::database::basic_connection::get_connection()->begin_transaction();
+    try {
+        __f();
+    } catch(std::exception e)
+    {
+        uva::database::basic_connection::get_connection()->end_transaction();    
+        throw;
+    }
+    uva::database::basic_connection::get_connection()->end_transaction();
+}
+
+
+size_t uva::database::query_buffer_lenght = uva::database::query_buffer_lenght_default;
+bool   uva::database::enable_query_cout_printing = uva::database::enable_query_cout_printing_default;
+
 // END STATIC MEMBERS
 
 using basic_migration = uva::database::basic_migration;
-uva_database_define_full(basic_migration, "database_migration", "s");
-
-size_t uva::database::query_buffer_lenght = uva::database::query_buffer_lenght_default;
+uva_database_define_full(basic_migration, "database_migrations");
 
 //BASIC CONNECTION
 
@@ -97,8 +113,6 @@ bool uva::database::sqlite3_connection::create_table(const uva::database::table*
             sql += ", " + col.first + " " + col.second;
         }
 
-        sql += ", updated_at INTEGER DEFAULT (STRFTIME('%s')), created_at INTEGER DEFAULT (STRFTIME('%s')), removed INTEGER DEFAULT 0";
-
         sql += ");";
 
         /* Execute SQL statement */
@@ -137,71 +151,6 @@ bool uva::database::sqlite3_connection::create_table(const uva::database::table*
     }
 
     return true;
-}
-
-void uva::database::sqlite3_connection::read_table(table* table)
-{
-    table->m_columns.clear();
-    table->m_relations.clear();
-
-    std::string sql = "SELECT * FROM " + table->m_name + ";";
-    sqlite3_stmt* stmt;
-
-    int error = sqlite3_prepare_v2(m_database, sql.c_str(), (int)sql.size(), &stmt, nullptr);
-
-    size_t colCount = sqlite3_column_count(stmt);
-
-    std::vector<std::string> indexCol;
-    std::vector<bool> indexText;
-
-    for (int colIndex = 0; colIndex < colCount; colIndex++) {        
-
-        std::string type = sqlite3_column_decltype(stmt, colIndex);
-        std::string name = sqlite3_column_name(stmt, colIndex);
-
-        if (type == "INT") {
-            type = "INTEGER";
-        }
-
-        indexCol.push_back(name);        
-        indexText.push_back(type != "INTEGER");
-
-        //Skip ID column
-        if (colIndex) table->m_columns.push_back({ name, type });
-    }
-      
-    while (sqlite3_step(stmt) == SQLITE_ROW) {
-        size_t id;
-        for (int colIndex = 0; colIndex < colCount; colIndex++) {
-
-            if (!colIndex) {
-                id = sqlite3_column_int(stmt, colIndex);
-            }
-            else {
-                const unsigned char* value = sqlite3_column_text(stmt, colIndex);
-
-                table->m_relations[id].insert({ indexCol[colIndex], std::string((const char*)value) });
-            }
-        }
-    }
-    //  Step, Clear and Reset the statement after each bind.
-    error = sqlite3_step(stmt);
-    error = sqlite3_clear_bindings(stmt);
-    error = sqlite3_reset(stmt);    
-
-    if (error) {        
-        //throw std::runtime_error(sqlite3_errmsg(m_database));
-    }
-
-    sqlite3_finalize(stmt);
-
-    char* error_msg = nullptr;
-
-    if (error) {
-        //std::string error_report = error_msg;
-        //sqlite3_free(error_msg);
-        //throw std::runtime_error(""/*error_report*/);
-    }    
 }
 
 void uva::database::sqlite3_connection::alter_table(uva::database::table* table, const std::string& new_signature)
@@ -378,6 +327,18 @@ void uva::database::sqlite3_connection::change_column(uva::database::table* tabl
     alter_table(table, new_definition);
 }
 
+void uva::database::sqlite3_connection::begin_transaction() 
+{
+    active_record_relation().commit("BEGIN TRANSACTION;");
+    enable_query_cout_printing = false;
+}
+
+void uva::database::sqlite3_connection::end_transaction() 
+{
+    enable_query_cout_printing = enable_query_cout_printing_default;
+    active_record_relation().commit("END TRANSACTION;");
+}
+
 //END SQLITE3 CONNECTION
 
 std::string& uva::database::table::at(size_t id, const std::string& key) {
@@ -446,6 +407,9 @@ uva::database::table* uva::database::table::get_table(const std::string& name) {
             uva::database::table * info_table = new uva::database::table("database_migrations",
             {
                 { "title", "TEXT" },
+                { "updated_at", "INTEGER DEFAULT (STRFTIME('%s'))" },
+                { "created_at", "INTEGER DEFAULT (STRFTIME('%s'))" },
+                { "removed",    "INTEGER DEFAULT 0" },    
             });
 
             //The table is only created if not exists
@@ -473,6 +437,20 @@ size_t uva::database::table::create(const std::map<std::string, var>& relations)
     return relation[0]["id"].to_i();
 }
 
+void uva::database::table::create(std::vector<var>& relations, const std::vector<std::string>& columns)
+{
+    var rows = std::move(relations);
+
+    auto relation = uva::database::active_record_relation(this).insert(rows).columns(columns).into(m_name).unscoped();
+    relation.commit_without_prepare(relation.to_sql());
+}
+
+void uva::database::table::create(var& rows, const std::vector<std::string>& columns)
+{
+    auto relation = uva::database::active_record_relation(this).insert(rows).columns(columns).into(m_name).unscoped();
+    relation.commit_without_prepare(relation.to_sql());
+}
+
 void uva::database::table::create(std::vector<std::map<std::string, var>>& relations)
 {
     std::vector<std::string> keys;
@@ -486,7 +464,7 @@ void uva::database::table::create(std::vector<std::map<std::string, var>>& relat
         if(keys.empty()) {
             keys = keys_values.first;
         } else {
-            #if _UVA_DEBUG_LEVEL_ > 3
+            #if UVA_DEBUG_LEVEL > 3
                 bool keys_match = keys.size() == keys_values.first.size() && std::equal(keys.begin(), keys.end(), keys_values.first.begin());
 
                 if(!keys_match) {
@@ -577,7 +555,7 @@ std::vector<std::pair<std::string, std::string>>::const_iterator uva::database::
 
 void uva::database::table::update(size_t id, const std::map<std::string, var>& values)
 {
-    active_record_relation(this).unscoped().update(values).commit_without_prepare();
+    active_record_relation(this).unscoped().update(values);
 }
 
 void uva::database::table::update(size_t id, const std::string& key, const std::string& value) {
@@ -606,7 +584,7 @@ uva::database::basic_active_record::basic_active_record(basic_active_record&& _r
 }
 
 uva::database::basic_active_record::basic_active_record(const std::map<std::string, var>& _values)
-    : values(values)
+    : values(_values)
 {
 
 }
@@ -749,11 +727,11 @@ uva::database::active_record_relation::active_record_relation(uva::database::tab
     
 }
 
-uva::database::active_record_relation& uva::database::active_record_relation::update(const std::map<std::string, var>& update)
+void uva::database::active_record_relation::update(const std::map<std::string, var>& update)
 {
     m_update = update;
+    commit_without_prepare();
 
-    return *this;
 }
 
 uva::database::active_record_relation& uva::database::active_record_relation::select(const std::string& select)
@@ -767,6 +745,12 @@ uva::database::active_record_relation& uva::database::active_record_relation::fr
 {
     m_from = from;
 
+    return *this;
+}
+
+uva::database::active_record_relation& uva::database::active_record_relation::group_by(const std::string& group)
+{
+    m_group = group;
     return *this;
 }
 
@@ -796,50 +780,29 @@ uva::database::active_record_relation& uva::database::active_record_relation::li
     return *this;
 }
 
-uva::database::active_record_relation& uva::database::active_record_relation::insert(std::vector<var>& insert)
+uva::database::active_record_relation& uva::database::active_record_relation::insert(var& insert)
 {
-    m_insert.push_back(insert);
-    // std::stringstream ss;
-
-    // for(size_t i = 0; i < insert.size(); ++i) {
-
-    //     if(insert[i].type == var::var_type::string) {
-
-    //         ss << '\'';
-
-    //         for(const char& c : insert[i].str)
-    //         {
-    //             ss << c;
-                
-    //             if(c == '\'') {
-    //                 ss << '\'';
-    //             }
-    //         }
-
-    //         ss << '\'';
-    //     } else {
-    //         ss << insert[i].to_s();
-    //     }
-
-    //    if(i < insert.size() - 1) ss << ',';
-    // }
-
-    // m_insert = ss.str();
-
+    m_insert = std::move(insert);
     return *this;
 }
 
-uva::database::active_record_relation& uva::database::active_record_relation::insert(std::vector<std::vector<var>>& _insert)
+uva::database::active_record_relation& uva::database::active_record_relation::insert(std::vector<var>& insert)
 {
-    //m_insert.reserve(_insert.size());
+    var v(std::move(insert));
 
-    //for(auto& values : _insert)
-    //{
-        //insert(values);
-    //}
+    m_insert.push_back(std::move(v));
+    return *this;
+}
 
-    m_insert = _insert;
+uva::database::active_record_relation& uva::database::active_record_relation::insert(std::vector<std::vector<var>>& __insert)
+{
+    m_insert.reserve(__insert.size());
+    for(auto& insert : __insert)
+    {
+        var v = std::move(insert);
 
+        m_insert.push_back(std::move(v));
+    }
     return *this;
 }
 
@@ -873,16 +836,13 @@ std::vector<var> uva::database::active_record_relation::pluck(const std::string&
 
     values.reserve(rel.m_results.size());
 
-    for(const auto& value : rel.m_results)
+    for(auto& value : rel.m_results)
     {
         if(value.size() == 1) {
             values.push_back(std::move(value[0]));
+            value.clear();
         } else if(value.size() > 1) {
-            var v;
-            v.type = var::var_type::array;
-            v.array = std::move(value);
-
-            values.push_back(std::move(v));
+            values.push_back(std::move(value));
         }
     }
 
@@ -1027,6 +987,8 @@ std::string sql_buffer;
 
 std::string uva::database::active_record_relation::commit_sql() const
 {
+    var arr = empty_array;
+
     sql_buffer.clear();
     sql_buffer.reserve(query_buffer_lenght); 
 
@@ -1044,11 +1006,11 @@ std::string uva::database::active_record_relation::commit_sql() const
         ',');
     }
 
-    if(m_select.size()) {
+    if(m_select.size() && !m_update.size()) {
         sql_buffer += "SELECT " + m_select;
     }
 
-    if(m_from.size()) {
+    if(m_from.size() && !m_update.size()) {
         sql_buffer += " FROM " + m_from;
     }
 
@@ -1058,6 +1020,10 @@ std::string uva::database::active_record_relation::commit_sql() const
 
     if(!m_unscoped) {
         sql_buffer += (m_where.size() ? " AND " : " WHERE ") + (std::string)"removed = 0";
+    }
+
+    if(m_group.size()) {
+        sql_buffer += " GROUP BY " + m_group;
     }
 
     if(m_order.size()) {
@@ -1092,14 +1058,13 @@ std::string uva::database::active_record_relation::commit_sql() const
                 if(m_insert[i][x].type == var::var_type::string)
                 {
                     sql_buffer.push_back('\'');
-                        for(const char& c : m_insert[i][x].str)
-                        {
+                        m_insert[i][x].each([](const char& c) {
                             sql_buffer.push_back(c);
                             if(c == '\'')
                             {
                                 sql_buffer.push_back(c);
                             }
-                        }
+                        });
                     sql_buffer.push_back('\'');
                 } else {
                     sql_buffer += m_insert[i][x].to_s();
@@ -1169,11 +1134,11 @@ void uva::database::active_record_relation::commit_without_prepare(const std::st
     char* error_msg = nullptr;
     struct callback_data {
         bool firstCalback = true;
-        uva::database::active_record_relation* self;
+        uva::database::active_record_relation* me;
     };
 
     callback_data data;
-    data.self = this;
+    data.me = this;
 
     int error = 0;
     auto elapsed = uva::diagnostics::measure_function([&]
@@ -1188,17 +1153,17 @@ void uva::database::active_record_relation::commit_without_prepare(const std::st
             if(data->firstCalback) {
                 std::string colName = columnNames[i];
                 
-                data->self->m_columnsNames.push_back(colName);
-                data->self->m_columnsIndexes.insert({colName, i});
+                data->me->m_columnsNames.push_back(colName);
+                data->me->m_columnsIndexes.insert({colName, i});
 
-                data->self->m_columnsTypes.push_back(var::var_type::string);
+                data->me->m_columnsTypes.push_back(var::var_type::string);
             }
         
             data->firstCalback = false;
             cols.push_back(columnValue[i]);
         }
 
-        data->self->m_results.push_back(cols);
+        data->me->m_results.push_back(cols);
 
         return 0;
     }, &data, &error_msg);});
@@ -1217,18 +1182,44 @@ void uva::database::active_record_relation::commit_without_prepare(const std::st
         color_code = uva::console::color_code::red;
     }
 
-    #ifdef USE_FMT_FORMT
-        std::string result = std::format("({} ms) {}", std::chrono::duration_cast<std::chrono::milliseconds>(elapsed).count(), sql.size() > 1000 ? sql.substr(0, 1000) : sql);
-    #else
-        std::string result = std::format("({}) {}", std::chrono::duration_cast<std::chrono::milliseconds>(elapsed), sql.size() > 1000 ? sql.substr(0, 1000) : sql);
-    #endif
+    if(enable_query_cout_printing)
+    {
+        #ifdef USE_FMT_FORMT
+            std::string result = std::format("({} ms) {}", std::chrono::duration_cast<std::chrono::milliseconds>(elapsed).count(), sql.size() > 1000 ? sql.substr(0, 1000) : sql);
+        #else
+            std::string result = std::format("({}) {}", std::chrono::duration_cast<std::chrono::milliseconds>(elapsed), sql.size() > 1000 ? sql.substr(0, 1000) : sql);
+        #endif
 
-    std::cout << uva::console::color(color_code) << result << std::endl;
+        std::cout << uva::console::color(color_code) << result << "\n";
+    }
 
     if(!error_report.empty()) {
-        std::cout << uva::console::color(uva::console::color_code::red) << error_report << std::endl;
+        if(enable_query_cout_printing) {
+            std::cout << uva::console::color(uva::console::color_code::red) << error_report << std::endl;
+        }
         throw std::runtime_error(error_report);
     }
+}
+
+uva::database::active_record_relation::operator uva::core::var()
+{
+    std::vector<var> values;
+
+    uva::database::active_record_relation rel = *this;
+    rel.commit();
+
+    for(auto& value : rel.m_results)
+    {
+        int col_it = 0;
+        std::map<var, var> row;
+        for(const std::string& col : rel.m_columnsNames) {
+            row.insert({col,std::move(value[col_it])});
+            col_it++;
+        }
+        values.push_back(std::move(row));
+    }
+
+    return var(std::move(values));
 }
 
 void uva::database::active_record_relation::commit(const std::string& sql)
@@ -1280,6 +1271,7 @@ void uva::database::active_record_relation::commit(const std::string& sql)
         }
 
         while (sqlite3_step(stmt) == SQLITE_ROW) {
+
             std::vector<var> cols;
 
             for (int colIndex = 0; colIndex < colCount; colIndex++) {
@@ -1287,6 +1279,7 @@ void uva::database::active_record_relation::commit(const std::string& sql)
                 var holder;
 
                 size_t type = sqlite3_column_type(stmt, colIndex);
+                var::var_type& value_type = columns_types[colIndex];
 
                 if(type == SQLITE_NULL)
                 {
@@ -1294,8 +1287,6 @@ void uva::database::active_record_relation::commit(const std::string& sql)
                 }
                 else
                 {
-                    var::var_type& value_type = columns_types[colIndex];
-
                     switch (value_type)
                     {
                         case var::var_type::integer:
@@ -1324,31 +1315,27 @@ void uva::database::active_record_relation::commit(const std::string& sql)
 
                             break;
                         }
+                        default:
+                            throw std::runtime_error("reading SQL results invalid data type");
+                        break;
                     }
 
                 }
 
-
                 cols.push_back(std::move(holder));
+                #ifdef UVA_DEBUG_LEVEL > 1
+                    if(cols.back().type != value_type)
+                    {
+                        throw std::runtime_error("reading SQL results wrong data type");
+                    }
+                #endif
             }
 
             m_results.push_back(std::move(cols));
         }
     });
 
-    //  Step, Clear and Reset the statement after each bind.
-
-    if(stmt) {
-        error = sqlite3_step(stmt);
-        error = sqlite3_clear_bindings(stmt);
-        error = sqlite3_reset(stmt);    
-    }
-
-    if (error) {        
-        //throw std::runtime_error(sqlite3_errmsg(m_database));
-    }
-
-    sqlite3_finalize(stmt);
+    error = sqlite3_finalize(stmt);
 
     if (error) {
         //std::string error_report = error_msg;
@@ -1364,16 +1351,22 @@ void uva::database::active_record_relation::commit(const std::string& sql)
         color_code = uva::console::color_code::red;
     }
 
-    #ifdef USE_FMT_FORMT
-        std::string result = std::format("({} ms) {}", std::chrono::duration_cast<std::chrono::milliseconds>(elapsed).count(), sql.size() > 1000 ? sql.substr(0, 1000) : sql);
-    #else
-        std::string result = std::format("({}) {}", std::chrono::duration_cast<std::chrono::milliseconds>(elapsed), sql.size() > 1000 ? sql.substr(0, 1000) : sql);
-    #endif
+    if(enable_query_cout_printing)
+    {
+        #ifdef USE_FMT_FORMT
+            std::string result = std::format("({} ms) {}", std::chrono::duration_cast<std::chrono::milliseconds>(elapsed).count(), sql.size() > 1000 ? sql.substr(0, 1000) : sql);
+        #else
+            std::string result = std::format("({}) {}", std::chrono::duration_cast<std::chrono::milliseconds>(elapsed), sql.size() > 1000 ? sql.substr(0, 1000) : sql);
+        #endif
 
-    std::cout << uva::console::color(color_code) << result << std::endl;
+        std::cout << uva::console::color(color_code) << result << std::endl;
+    }
 
     if(!error_report.empty()) {
-        std::cout << uva::console::color(uva::console::color_code::red) << error_report << std::endl;
+        if(enable_query_cout_printing)
+        {
+            std::cout << uva::console::color(uva::console::color_code::red) << error_report << std::endl;
+        }
         throw std::runtime_error(error_report);
     }
 }
@@ -1382,9 +1375,18 @@ void uva::database::active_record_relation::commit(const std::string& sql)
 
 //BASIC MIGRATION
 
-uva::database::basic_migration::basic_migration(const std::string& __title)
+uva::database::basic_migration::basic_migration(const std::string& __title, std::string_view __filename)
     : title(__title), uva::database::basic_active_record(0)
 {
+    const char* migrations_last_dir = "migrations/";
+    static const size_t migrations_last_dir_len = strlen(migrations_last_dir);
+    const char* __filename_str_ptr = __filename.substr(__filename.find(migrations_last_dir)+migrations_last_dir_len).data();
+
+    while(*__filename_str_ptr && isdigit(*__filename_str_ptr)) {
+        date_str.push_back(*__filename_str_ptr);
+        ++__filename_str_ptr;
+    }
+
     get_migrations().push_back(this);
 }
 
@@ -1445,6 +1447,12 @@ void uva::database::basic_migration::call_change()
         exit(EXIT_FAILURE);
 
         return;
+    } catch(const char* e)
+    {
+        std::cout << uva::console::color(uva::console::color_code::red) << std::format("{}: {}\n\nAborting...", this->title, e) << std::endl;
+        exit(EXIT_FAILURE);
+
+        return;
     }
 }
 
@@ -1459,8 +1467,8 @@ void uva::database::basic_migration::do_pending_migrations()
 {
     std::vector<uva::database::basic_migration*>& migrations = uva::database::basic_migration::get_migrations();
 
-    std::sort(migrations.begin(), migrations.end(), [](const uva::database::basic_migration& lhs, const uva::database::basic_migration& rhs){
-        return lhs.title < rhs.title;
+    std::sort(migrations.begin(), migrations.end(), [](const uva::database::basic_migration* lhs, const uva::database::basic_migration* rhs){
+        return lhs->date_str < rhs->date_str;
     });
 
     for(uva::database::basic_migration* migration : migrations)
@@ -1490,7 +1498,7 @@ void uva::database::basic_migration::drop_table(const std::string& table_name)
 
 void uva::database::basic_migration::add_index(const std::string& table_name, const std::string& column)
 {
-    uva::database::active_record_relation().commit_without_prepare(std::format("CREATE INDEX idx_{}_on_{} ON {}({});", table_name, uva::string::replace(column, ',', '_'), table_name, column));
+    uva::database::active_record_relation().commit_without_prepare(std::format("CREATE INDEX IF NOT EXISTS idx_{}_on_{} ON {}({});", table_name, uva::string::replace(column, ',', '_'), table_name, column));
 }
 
 void uva::database::basic_migration::add_column(const std::string& table_name, const std::string& name, const std::string& type, const std::string& default_value) const

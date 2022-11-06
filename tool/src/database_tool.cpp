@@ -40,7 +40,7 @@ protected:
     virtual void change() override 
     {{ {}
     }}
-}}
+}};
 
 uva_define_migration({});
 )~~~";

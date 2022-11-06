@@ -48,6 +48,8 @@ public:\
         r = record::find_by("id={}", r["id"]);\
         return r;\
     } \
+    static void create(std::vector<var>& rows, const std::vector<std::string>& columns) { table()->create(rows, columns); } \
+    static void create(var& rows, const std::vector<std::string>& columns) { table()->create(rows, columns); } \
     static void create(std::vector<std::map<std::string, var>>& relations) { table()->create(relations); } \
     static size_t column_count() { return table()->m_columns.size(); } \
     static std::vector<std::pair<std::string, std::string>>& columns() { return table()->m_columns; } \
@@ -77,23 +79,23 @@ public:\
         return class_name;\
     };\
 
-#define uva_database_define_full(record, __table_name, sufix) \
+#define uva_database_define_full(record, __table_name) \
 uva::database::table* record::table() { \
 \
-    static std::string table_name = uva::string::to_snake_case(__table_name) + sufix; \
+    static std::string table_name = __table_name; \
 \
     static uva::database::table* table = uva::database::table::get_table(table_name);\
     \
     return table; \
 }\
 
-#define uva_database_define(record) uva_database_define_full(record, #record, "s")
+#define uva_database_define(record) uva_database_define_full(record, uva::string::to_snake_case(uva::string::pluralize(#record)))
 
 #define uva_database_define_sqlite3(db) uva::database::sqlite3_connection* connection = new uva::database::sqlite3_connection(db);
 
 #define uva_declare_migration(migration) public: migration()
 
-#define uva_define_migration(m) m::m() : uva::database::basic_migration(#m) {  } m* _##m = new m();
+#define uva_define_migration(m) m::m() : uva::database::basic_migration(#m, __FILE__) {  } m* _##m = new m();
 
 #define uva_run_migrations() uva::database::basic_migration::do_pending_migrations();
 
@@ -106,8 +108,13 @@ namespace uva
         // Increase this if you are going to do big inserts/updates. Helps a lot with performance.
         // You can change it to a big value and then go back to default. The buffer is reset in the next run.
         extern size_t query_buffer_lenght;
+        // Default value of query_buffer_lenght. Don't change this. You can change query_buffer_lenght.
+        static constexpr bool enable_query_cout_printing_default = true;
+        extern bool enable_query_cout_printing;
         class table;
         class basic_active_record;
+
+        void within_transaction(std::function<void()> __f);
 
         class basic_connection
         {
@@ -119,13 +126,14 @@ namespace uva
             virtual bool open() = 0;
             virtual bool is_open() const = 0;
             virtual bool create_table(const table* table) const = 0;
-            virtual void read_table(table* table) = 0;
             virtual bool insert(table* table, size_t id, const std::map<std::string, std::string>& relations) = 0;
             virtual bool insert(table* table, size_t id, const std::vector<std::map<std::string, std::string>>& relations) = 0;
             virtual void update(size_t id, const std::string& key, const std::string& value, table* table) = 0;
             virtual void destroy(size_t id, uva::database::table* table) = 0;
             virtual void add_column(uva::database::table* table, const std::string& name, const std::string& type, const std::string& default_value) = 0;
             virtual void change_column(uva::database::table* table, const std::string& name, const std::string& type) = 0;
+            virtual void begin_transaction() = 0;
+            virtual void end_transaction() = 0;
             static basic_connection* get_connection();
         };
 
@@ -144,7 +152,6 @@ namespace uva
                 virtual bool is_open() const override;
                 bool open(const std::filesystem::path& path);
                 virtual bool create_table(const table* table) const override;
-                virtual void read_table(table* table) override;
                 void alter_table(uva::database::table* table, const std::string& new_signature);
                 virtual bool insert(table* table, size_t id, const std::map<std::string, std::string>& relations) override;
                 virtual bool insert(table* table, size_t id, const std::vector<std::map<std::string, std::string>>& relations) override;
@@ -152,6 +159,8 @@ namespace uva
                 virtual void destroy(size_t id, uva::database::table* table) override;
                 virtual void add_column(uva::database::table* table, const std::string& name, const std::string& type, const std::string& default_value) override;
                 virtual void change_column(uva::database::table* table, const std::string& name, const std::string& type) override;
+                virtual void begin_transaction() override;
+                virtual void end_transaction() override;
         };
  
         using result = std::vector<std::pair<std::string, std::string>>;
@@ -170,9 +179,10 @@ namespace uva
             std::string m_select;
             std::string m_from;
             std::string m_where;
+            std::string m_group;
             std::string m_order;
             std::string m_limit;
-            std::vector<std::vector<var>> m_insert;
+            var m_insert = empty_array;
             std::vector<std::string> m_columns;
             std::string m_into;
             std::string m_returning;
@@ -188,7 +198,7 @@ namespace uva
             std::vector<std::vector<var>> m_results;
             std::string to_sql() const;
         public:
-            active_record_relation& update(const std::map<std::string, var>& update);
+            void update(const std::map<std::string, var>& update);
             active_record_relation& select(const std::string& select);
             active_record_relation& from(const std::string& from);
             template<class... Args>
@@ -202,6 +212,7 @@ namespace uva
                 append_where(__where);
                 return *this;
             }
+            active_record_relation& group_by(const std::string& group);
             template<class... Args>
             active_record_relation& order_by(const std::string order, Args... args)
             {
@@ -217,6 +228,7 @@ namespace uva
             active_record_relation& order_by(const std::string& order);
             active_record_relation& limit(const std::string& limit);
             active_record_relation& limit(const size_t& limit);
+            active_record_relation& insert(var& insert);
             active_record_relation& insert(std::vector<var>& insert);
             active_record_relation& insert(std::vector<std::vector<var>>& insert);
             active_record_relation& columns(const std::vector<std::string>& cols);
@@ -261,6 +273,7 @@ namespace uva
             void commit_without_prepare();
             void commit(const std::string& sql);
             void commit_without_prepare(const std::string& sql);
+            operator var();
         };
 
         class table
@@ -275,6 +288,8 @@ namespace uva
             size_t create();
             size_t create(const std::map<std::string, var>& relations);
             void create(std::vector<std::map<std::string, var>>& relations);
+            void create(std::vector<var>& relations, const std::vector<std::string>& columns);
+            void create(var& relations, const std::vector<std::string>& columns);
             void create(std::vector<std::vector<var>>& relations, const std::vector<std::string>& columns);
             size_t find(size_t id) const;
             size_t find_by(const std::map<std::string, std::string>& relations);
@@ -336,10 +351,11 @@ namespace uva
         {
         uva_database_declare(basic_migration);
         public:
-            basic_migration(const std::string& __title);
+            basic_migration(const std::string& __title, std::string_view __filename);
         private:
             std::string make_label();
             std::string title;
+            std::string date_str;
         public:
             bool is_pending();
             virtual void change() {};
