@@ -94,6 +94,9 @@ public:\
         return class_name;\
     };\
 
+#define uva_database_expose_column(column_name)\
+    uva::database::basic_active_record_column column_name = { #column_name, (basic_active_record*)this };
+
 #define uva_database_define_full(record, __table_name) \
 uva::database::table* record::table() { \
 \
@@ -128,6 +131,7 @@ namespace uva
         extern bool enable_query_cout_printing;
         class table;
         class basic_active_record;
+        class basic_active_record_column;
 
         void within_transaction(std::function<void()> __f);
 
@@ -340,6 +344,7 @@ namespace uva
             virtual const std::string& class_name() const = 0;
             std::string to_s() const;
             std::map<std::string, var> values;
+            std::map<std::string, basic_active_record_column*> columns;
         public:
             basic_active_record& operator=(const basic_active_record& other);
         public:
@@ -349,13 +354,32 @@ namespace uva
             void save();
             void update(const std::string& col, const var& value);
             void update(const std::map<std::string, var>& values);
+
+            void update_exposed_column(const std::string& __key, basic_active_record_column* __column);
+            void update_exposed_columns();
+            void expose_column(const std::string& __key, basic_active_record_column* __column);
         public:
             var& operator[](const char* str);
             const var& operator[](const char* str) const;
             var& operator[](const std::string& str);
             const var& operator[](const std::string& str) const;
         };
-        
+        class basic_active_record_column : public var
+        {
+        public:
+            std::string key;
+            basic_active_record* active_record;
+        public:
+            basic_active_record_column(const std::string& __key, basic_active_record* __record);
+        public:
+            template<typename T>
+            basic_active_record_column& operator=(const T& t)
+            {
+                var::operator=(t);
+                (*active_record)[key].type = type;
+                return *this;
+            }
+        };
         class basic_migration : public basic_active_record
         {
         uva_database_declare(basic_migration);

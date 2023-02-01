@@ -715,7 +715,43 @@ void uva::database::basic_active_record::update(const std::map<std::string, var>
     before_save();
 }
 
+void uva::database::basic_active_record::update_exposed_column(const std::string &__key, basic_active_record_column *__column)
+{
+    auto it = values.find(__key);
+
+    if(it != values.end()) {
+        __column->m_value_ptr = it->second.m_value_ptr;
+        __column->type        = it->second.type;
+    }
+}
+
+void uva::database::basic_active_record::update_exposed_columns()
+{
+    for(auto& value : values) {
+        auto it = columns.find(value.first);
+        update_exposed_column(value.first, it->second);
+    }
+}
+
+void uva::database::basic_active_record::expose_column(const std::string &__key, basic_active_record_column *__column)
+{
+    values[__key] = null;
+    columns[__key] = __column;
+
+    update_exposed_column(__key, __column);
+}
+
 //END ACTIVE RECORD
+
+//ACTIVE RECORD COLUMN
+
+uva::database::basic_active_record_column::basic_active_record_column(const std::string &__key, basic_active_record *__record)
+    : key(__key), active_record(__record)
+{
+    active_record->expose_column(key, this);
+}
+
+//END ACTIVE RECORD COLUMN
 
 //MIGRATION
 
@@ -1218,7 +1254,7 @@ void uva::database::active_record_relation::commit_without_prepare(const std::st
             std::string result = std::format("({}) {}", std::chrono::duration_cast<std::chrono::milliseconds>(elapsed), sql.size() > 1000 ? sql.substr(0, 1000) : sql);
         #endif
 
-        std::cout << uva::console::color(color_code) << result << "\n";
+        std::cout << uva::console::color(color_code) << result << std::endl;
     }
 
     if(!error_report.empty()) {
