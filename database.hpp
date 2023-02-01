@@ -68,6 +68,19 @@ public:\
     static void each(std::function<void(record&)> func) { return record::all().each<record>(func); }\
     template<class... Args> static record find_by(std::string where, Args const&... args) { return record(record::all().find_by(where, args...)); }\
     static record find_by(std::map<var, var>&& v) { return record(record::all().where(std::move(v))); }\
+    static record find_or_create_by(std::map<var, var>&& v) {\
+        auto result = all().where(std::move(std::map<var, var>(v)));\
+\
+        auto it = result.find("id");\
+\
+        if(it == result.end()) {\
+            record r(std::move(v));\
+            r.save();\
+\
+            r = record::find_by("id={}", r["id"]);\
+            return r;\
+        }\
+    }\
     static record first() { return all().first(); }\
     record& operator=(const record& other)\
     {\
@@ -264,6 +277,7 @@ namespace uva
             {
                 return active_record_relation(*this).where(where, std::forward<Args>(args)...).first();
             }
+            std::map<std::string, var> find_or_create_by(std::map<var, var>&& v);
         public:
             bool empty();
             std::map<std::string, var> operator[](const size_t& index);
