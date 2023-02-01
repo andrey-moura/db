@@ -90,7 +90,11 @@ protected:
 uva_define_migration(AddUsersMigration);
 ```
 
-Columns are defined inside the map in second parameter of `add_table`
+Columns are defined inside the map in second parameter of `add_table`. Those columns are accessed by `User::operator[](std::string)`, they'll only be available with the `User::operator.` when exposing the column inside the class:
+
+```cpp
+uva_database_expose_column(password);
+```
 
 ## Supported database engines
 
