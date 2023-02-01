@@ -751,7 +751,32 @@ uva::database::active_record_relation& uva::database::active_record_relation::fr
     return *this;
 }
 
-uva::database::active_record_relation& uva::database::active_record_relation::group_by(const std::string& group)
+std::map<std::string, var> uva::database::active_record_relation::where(std::map<var, var> &&v)
+{
+    std::string where = "(";
+    size_t to_reserve = v.size()*64;
+
+    for(const auto& value : v) {
+        where += value.first.to_s();
+        where += " = ";
+
+        if(value.second.type == var::var_type::string) {
+            where.push_back('\'');
+            where += value.second.to_s();
+            where.push_back('\'');
+        } else {
+            where += value.second.to_s();
+        }
+    }
+
+    where += " ) ";
+
+    UVA_CHECK_RESERVED_BUFFER(where, to_reserve);
+
+    return active_record_relation(*this).where(where).first();
+}
+
+uva::database::active_record_relation &uva::database::active_record_relation::group_by(const std::string &group)
 {
     m_group = group;
     return *this;
