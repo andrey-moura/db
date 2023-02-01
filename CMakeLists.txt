@@ -18,4 +18,4 @@ include("${CMAKE_CURRENT_LIST_DIR}/sample/CMakeLists.txt")
 #create tests for parent project
 cspec_configure("uva-database" ${CMAKE_CURRENT_LIST_DIR} "uva-string;uva-database;uva-faker;uva-core;uva-console")
 
-include("${CMAKE_CURRENT_LIST_DIR}/tool/CMakeLists.txt")
+include("${CMAKE_CURRENT_LIST_DIR}/database/CMakeLists.txt")
