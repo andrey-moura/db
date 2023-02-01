@@ -31,7 +31,8 @@ public:\
     record(const record& other) : uva::database::basic_active_record(other) { } \
     record(size_t id) : uva::database::basic_active_record(id) { } \
     record(const std::map<std::string, var>& values) : uva::database::basic_active_record(values) { } \
-    record(std::map<std::string, var>&& values) : uva::database::basic_active_record(std::forward<std::map<std::string, var>>(values)) { } \
+    record(std::map<var, var>&& values) : uva::database::basic_active_record(std::move(values)) { } \
+    record(std::map<std::string, var>&& values) : uva::database::basic_active_record(std::move(values)) { } \
     const uva::database::table* get_table() const override { return table(); } \
     uva::database::table* get_table() override { return table(); } \
     static uva::database::table* table(); \
