@@ -735,10 +735,13 @@ void uva::database::basic_active_record::update_exposed_columns()
 
 void uva::database::basic_active_record::expose_column(const std::string &__key, basic_active_record_column *__column)
 {
-    values[__key] = null;
     columns[__key] = __column;
 
-    update_exposed_column(__key, __column);
+    auto it = values.find(__key);
+
+    if(it != values.end()) {
+        update_exposed_column(__key, __column);
+    }
 }
 
 //END ACTIVE RECORD

@@ -375,8 +375,8 @@ namespace uva
             template<typename T>
             basic_active_record_column& operator=(const T& t)
             {
-                var::operator=(t);
-                (*active_record)[key].type = type;
+                (*active_record)[key] = t;
+                type = (*active_record)[key].type;
                 return *this;
             }
         };
