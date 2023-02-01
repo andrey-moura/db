@@ -326,6 +326,7 @@ namespace uva
             basic_active_record(basic_active_record&& record);
             basic_active_record(const std::map<std::string, var>& value);
             basic_active_record(std::map<std::string, var>&& value);
+            basic_active_record(std::map<var, var>&& value);
         public:
             bool present() const;
             void destroy();            
