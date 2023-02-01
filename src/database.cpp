@@ -105,15 +105,17 @@ bool uva::database::sqlite3_connection::create_table(const uva::database::table*
     auto elapsed = uva::diagnostics::measure_function([&]{
         /* Create SQL statement */
 
-        sql = "CREATE TABLE IF NOT EXISTS " + table->m_name + "("  \
-        "id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL";
+        sql = "CREATE TABLE IF NOT EXISTS " + table->m_name + "(";
 
         for(const auto& col : table->m_columns)
         {
-            sql += ", " + col.first + " " + col.second;
+            sql += col.first + " " + col.second + ", ";
         }
 
-        sql += ");";
+        sql.pop_back();
+        sql.pop_back();
+
+        sql += " );";
 
         /* Execute SQL statement */
 
@@ -406,7 +408,8 @@ uva::database::table* uva::database::table::get_table(const std::string& name) {
         if(name == "database_migrations") {
             uva::database::table * info_table = new uva::database::table("database_migrations",
             {
-                { "title", "TEXT" },
+                { "id",         "INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL" },
+                { "title",      "TEXT NOT NULL" },
                 { "updated_at", "INTEGER DEFAULT (STRFTIME('%s'))" },
                 { "created_at", "INTEGER DEFAULT (STRFTIME('%s'))" },
                 { "removed",    "INTEGER DEFAULT 0" },    
