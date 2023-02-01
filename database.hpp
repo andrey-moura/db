@@ -67,6 +67,7 @@ public:\
     static void each_with_index(std::function<void(record&, const size_t&)> func) { return record::all().each_with_index<record>(func); }\
     static void each(std::function<void(record&)> func) { return record::all().each<record>(func); }\
     template<class... Args> static record find_by(std::string where, Args const&... args) { return record(record::all().find_by(where, args...)); }\
+    static record find_by(std::map<var, var>&& v) { return record(record::all().where(std::move(v))); }\
     static record first() { return all().first(); }\
     record& operator=(const record& other)\
     {\
