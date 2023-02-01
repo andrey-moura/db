@@ -219,24 +219,16 @@ namespace uva
             template<class... Args>
             active_record_relation& where(const std::string where, Args... args)
             {
-                #ifdef USE_FMT_FORMT
-                    std::string __where = vformat(where, std::make_format_args(args...));
-                #else
-                    std::string __where = std::format(where, std::forward<Args>(args)...);
-                #endif
+                std::string __where = std::vformat(where, std::make_format_args(args...));
                 append_where(__where);
                 return *this;
             }
+            std::map<std::string, var> where(std::map<var, var>&& v);
             active_record_relation& group_by(const std::string& group);
             template<class... Args>
             active_record_relation& order_by(const std::string order, Args... args)
             {
-                #ifdef USE_FMT_FORMT
-                    std::string __order = vformat(order, std::make_format_args(args...));
-                #else
-                    std::string __order = std::format(order, std::forward<Args>(args)...);
-                #endif
-
+                std::string __order = vformat(order, std::make_format_args(args...));
                 order_by(__order);
                 return *this;
             }
