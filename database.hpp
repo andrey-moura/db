@@ -69,17 +69,16 @@ public:\
     template<class... Args> static record find_by(std::string where, Args const&... args) { return record(record::all().find_by(where, args...)); }\
     static record find_by(std::map<var, var>&& v) { return record(record::all().where(std::move(v))); }\
     static record find_or_create_by(std::map<var, var>&& v) {\
-        auto result = all().where(std::move(std::map<var, var>(v)));\
+        auto result = record::find_by(std::move(std::map<var, var>(v)));\
 \
-        auto it = result.find("id");\
-\
-        if(it == result.end()) {\
+        if(!result.present()) {\
             record r(std::move(v));\
             r.save();\
 \
             r = record::find_by("id={}", r["id"]);\
             return r;\
         }\
+        return result;\
     }\
     static record first() { return all().first(); }\
     record& operator=(const record& other)\
@@ -321,7 +320,26 @@ namespace uva
             std::vector<std::pair<std::string, std::string>>::iterator find_column(const std::string& col);
             static void add_table(uva::database::table* table);
         };
-        
+        class basic_active_record_column : public var
+        {
+        public:
+            std::string key;
+            basic_active_record* active_record;
+        public:
+            basic_active_record_column(const std::string& __key, basic_active_record* __record);
+        public:
+            template<typename T>
+            basic_active_record_column& operator=(const T& t)
+            {
+                var& v = (*active_record)[key];
+                v = t;
+                type =         v.type;
+                m_value_ptr =  v.m_value_ptr;
+                return *this;
+            }
+
+            ~basic_active_record_column();
+        };
         class basic_active_record
         {              
         public:
@@ -334,8 +352,6 @@ namespace uva
         public:
             bool present() const;
             void destroy();            
-        public:
-            size_t id = 0; 
         protected:
             virtual const table* get_table() const = 0;
             virtual table* get_table() = 0;
@@ -345,6 +361,9 @@ namespace uva
             std::string to_s() const;
             std::map<std::string, var> values;
             std::map<std::string, basic_active_record_column*> columns;
+            //Need to come AFTER values and columns declaration
+        public:
+            uva_database_expose_column(id);
         public:
             basic_active_record& operator=(const basic_active_record& other);
         public:
@@ -363,22 +382,6 @@ namespace uva
             const var& operator[](const char* str) const;
             var& operator[](const std::string& str);
             const var& operator[](const std::string& str) const;
-        };
-        class basic_active_record_column : public var
-        {
-        public:
-            std::string key;
-            basic_active_record* active_record;
-        public:
-            basic_active_record_column(const std::string& __key, basic_active_record* __record);
-        public:
-            template<typename T>
-            basic_active_record_column& operator=(const T& t)
-            {
-                (*active_record)[key] = t;
-                type = (*active_record)[key].type;
-                return *this;
-            }
         };
         class basic_migration : public basic_active_record
         {

@@ -570,32 +570,43 @@ void uva::database::table::update(size_t id, const std::string& key, const std::
 //ACTIVE RECORD
 
 uva::database::basic_active_record::basic_active_record(size_t _id)
-    : id(_id) {
-    
+{
+    id = _id;
 }
 
 uva::database::basic_active_record::basic_active_record(const basic_active_record& _record)
-    : id(_record.id), values(_record.values)
+    : values(_record.values)
 {
-
+    id = at("id");
 }
 
 uva::database::basic_active_record::basic_active_record(basic_active_record&& _record)
-    :  id(_record.id), values(std::move(_record.values))
+    : values(std::move(_record.values))
 {
     _record.id = 0;
+    id = _record.id;
 }
 
 uva::database::basic_active_record::basic_active_record(const std::map<std::string, var>& _values)
     : values(_values)
 {
-
+   id = at("id");
 }
 
 uva::database::basic_active_record::basic_active_record(std::map<std::string, var>&& _values)
     : values(std::forward<std::map<std::string, var>>(_values))
 {
+    id = at("id");
+}
 
+uva::database::basic_active_record::basic_active_record(std::map<var, var>&& __values)
+{
+    for(const auto& value : __values)
+    {
+        values[value.first.to_s()] = value.second;
+    }
+
+    id = at("id");
 }
 
 bool uva::database::basic_active_record::present() const {
@@ -752,6 +763,12 @@ uva::database::basic_active_record_column::basic_active_record_column(const std:
     : key(__key), active_record(__record)
 {
     active_record->expose_column(key, this);
+}
+
+uva::database::basic_active_record_column::~basic_active_record_column()
+{
+    m_value_ptr = nullptr;
+    type        = null;
 }
 
 //END ACTIVE RECORD COLUMN
