@@ -809,6 +809,7 @@ uva::database::active_record_relation& uva::database::active_record_relation::fr
 
 std::map<std::string, var> uva::database::active_record_relation::where(std::map<var, var> &&v)
 {
+    const std::string separator = " AND ";
     std::string where = "(";
     size_t to_reserve = v.size()*64;
 
@@ -823,9 +824,12 @@ std::map<std::string, var> uva::database::active_record_relation::where(std::map
         } else {
             where += value.second.to_s();
         }
+
+        where += separator;
     }
 
-    where += " ) ";
+    where.resize(where.size()-separator.size());
+    where += ") ";
 
     UVA_CHECK_RESERVED_BUFFER(where, to_reserve);
 
