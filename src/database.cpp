@@ -569,9 +569,9 @@ void uva::database::table::update(size_t id, const std::string& key, const std::
 
 //ACTIVE RECORD
 
-uva::database::basic_active_record::basic_active_record(size_t _id)
+uva::database::basic_active_record::basic_active_record()
 {
-    id = _id;
+
 }
 
 uva::database::basic_active_record::basic_active_record(const basic_active_record& _record)
@@ -1464,7 +1464,7 @@ void uva::database::active_record_relation::commit(const std::string& sql)
 //BASIC MIGRATION
 
 uva::database::basic_migration::basic_migration(const std::string& __title, std::string_view __filename)
-    : title(__title), uva::database::basic_active_record(0)
+    : title(__title)
 {
     const char* migrations_last_dir = "migrations/";
     static const size_t migrations_last_dir_len = strlen(migrations_last_dir);

@@ -27,9 +27,8 @@
 
 #define uva_database_declare(record) \
 public:\
-    record() : uva::database::basic_active_record(std::string::npos) { } \
+    record() : uva::database::basic_active_record() { } \
     record(const record& other) : uva::database::basic_active_record(other) { } \
-    record(size_t id) : uva::database::basic_active_record(id) { } \
     record(const std::map<std::string, var>& values) : uva::database::basic_active_record(values) { } \
     record(std::map<var, var>&& values) : uva::database::basic_active_record(std::move(values)) { } \
     record(std::map<std::string, var>&& values) : uva::database::basic_active_record(std::move(values)) { } \
@@ -343,7 +342,7 @@ namespace uva
         class basic_active_record
         {              
         public:
-            basic_active_record(size_t _id);
+            basic_active_record();
             basic_active_record(const basic_active_record& record);
             basic_active_record(basic_active_record&& record);
             basic_active_record(const std::map<std::string, var>& value);
