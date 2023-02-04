@@ -695,7 +695,7 @@ void uva::database::basic_active_record::save()
     auto it = values.find("id"); 
 
     if(it == values.end() || it->second.is_null()) {
-       values["id"] = get_table()->create(values);
+       id = get_table()->create(values);
     } else {
         before_update();
         get_table()->update(it->second, values);
