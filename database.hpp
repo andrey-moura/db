@@ -409,3 +409,10 @@ namespace uva
         };
     };
 };
+
+template <>
+struct std::formatter<uva::database::basic_active_record_column> : std::formatter<std::string> {
+    auto format(const uva::database::basic_active_record_column& v, format_context& ctx) {
+        return std::format_to(ctx.out(), "{}", v.to_s());
+    }
+};
