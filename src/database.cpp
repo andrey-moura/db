@@ -1143,7 +1143,10 @@ std::string uva::database::active_record_relation::commit_sql() const
 
             for(size_t x = 0; x < m_insert[i].size(); ++x)
             {
-                if(m_insert[i][x].type == var::var_type::string)
+                if(m_insert[i][x].type == var::var_type::null_type) {
+                    sql_buffer += "null";
+                }
+                else if(m_insert[i][x].type == var::var_type::string)
                 {
                     sql_buffer.push_back('\'');
                         m_insert[i][x].each([](const char& c) {
