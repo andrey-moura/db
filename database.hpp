@@ -9,7 +9,8 @@
 #include <iterator>
 #include <functional>
 #include <thread>
-#include <format>
+#include <format.hpp>
+
 #include "sqlite3.h"
 
 #include <core.hpp>
@@ -330,7 +331,7 @@ namespace uva
             template<typename T>
             basic_active_record_column& operator=(const T& t)
             {
-                var& v = (*active_record)[key];
+                var& v = active_record->at(key);
                 v = t;
                 type =         v.type;
                 m_value_ptr =  v.m_value_ptr;

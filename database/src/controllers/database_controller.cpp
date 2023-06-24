@@ -31,7 +31,7 @@ void create_model(const var& name)
 		return;
 	}
 
-    var includes = {"core.hpp", "database.hpp"};
+    var includes = var::array({"core.hpp", "database.hpp"});
     var include_format = "#include <{}>\n";
 
     includes.each([&](const var& include){
@@ -81,7 +81,7 @@ void create_migration(const var& name, const var& content)
 		return;
 	}
 
-    var includes = {"core.hpp", "database.hpp"};
+    var includes = var::array({"core.hpp", "database.hpp"});
     var include_format = "#include <{}>\n";
 
     includes.each([&](const var& include){
