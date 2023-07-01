@@ -185,7 +185,7 @@ namespace uva
         using results = std::vector<std::vector<std::pair<std::string, std::string>>>;
 
         extern std::map<std::string, var::var_type> sql_values_types_map;
-        const var::var_type& sql_delctype_to_value_type(const std::string& type);
+        var::var_type sql_delctype_to_value_type(const std::string& type);
 
         class active_record_relation
         {

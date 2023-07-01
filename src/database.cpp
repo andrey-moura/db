@@ -10,7 +10,7 @@ std::map<std::string, var::var_type> uva::database::sql_values_types_map
     { "REAL", var::var_type::real },
 };
 
-const var::var_type& uva::database::sql_delctype_to_value_type(const std::string& type)
+var::var_type uva::database::sql_delctype_to_value_type(const std::string& type)
 {
     auto it = sql_values_types_map.find(type);
 
