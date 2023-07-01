@@ -329,14 +329,7 @@ namespace uva
             basic_active_record_column(const std::string& __key, basic_active_record* __record);
         public:
             template<typename T>
-            basic_active_record_column& operator=(const T& t)
-            {
-                var& v = active_record->at(key);
-                v = t;
-                type =         v.type;
-                m_value_ptr =  v.m_value_ptr;
-                return *this;
-            }
+            basic_active_record_column& operator=(const T& t);
 
             ~basic_active_record_column();
         };
@@ -408,6 +401,17 @@ namespace uva
             void add_index(const std::string& table_name, const std::string& column);
             void change_column(const std::string& table_name, const std::string& name, const std::string& type) const;
         };
+        template <typename T>
+        inline basic_active_record_column &basic_active_record_column::operator=(const T &t)
+        {
+            {
+                var& v = active_record->at(key);
+                v = t;
+                type =         v.type;
+                m_value_ptr =  v.m_value_ptr;
+                return *this;
+            }
+        }
     };
 };
 
