@@ -10,11 +10,17 @@ std::map<std::string, var::var_type> uva::database::sql_values_types_map
     { "REAL", var::var_type::real },
 };
 
-const var::var_type& uva::database::sql_delctype_to_value_type(const std::string& type)
+var::var_type uva::database::sql_delctype_to_value_type(const std::string& type)
 {
     auto it = sql_values_types_map.find(type);
 
-    if(it != sql_values_types_map.end()) 
+    if(it == sql_values_types_map.end()) 
+    {
+        if(type.starts_with("VARCHAR")) {
+            return var::var_type::string;
+        }
+    }
+    else
     {
         return it->second;
     }
