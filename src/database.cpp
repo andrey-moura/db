@@ -561,7 +561,7 @@ void uva::database::table::update(size_t id, const std::map<std::string, var>& v
     active_record_relation(this).unscoped().update(values);
 }
 
-void uva::database::table::update(size_t id, const std::string& key, const std::string& value) {
+void uva::database::table::update(size_t id, const std::string& key, const var& value) {
     update(id, { { key, value } });
 }
 

@@ -309,7 +309,7 @@ namespace uva
             std::string primary_key;
             void destroy(size_t id);
             bool relation_exists(size_t id) const;
-            void update(size_t id, const std::string& key, const std::string& value);
+            void update(size_t id, const std::string& key, const var& value);
             void update(size_t id, const std::map<std::string, var>& value);
             static std::map<std::string, table*>& get_tables();
             static table* get_table(const std::string& name);
