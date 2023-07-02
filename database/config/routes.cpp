@@ -11,6 +11,7 @@ DECLARE_CONSOLE_APPLICATION(
     //Declare your routes above. As good practice, keep then ordered by controler.
     //You can have C++ code here, perfect for init other libraries.
 
-    ROUTE("new-model", database_controller::new_model);
+    ROUTE("model", database_controller::new_model);
+    ROUTE("migration", database_controller::new_migration);
     ROUTE("init", database_controller::init);
 )

@@ -188,5 +188,5 @@ void database_controller::new_migration()
         return;
     }
 
-    create_migration(name, "");
+    create_migration(name+"Migration", "");
 }
