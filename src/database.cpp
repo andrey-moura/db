@@ -564,7 +564,7 @@ std::vector<std::pair<std::string, std::string>>::const_iterator uva::database::
 
 void uva::database::table::update(size_t id, const std::map<std::string, var>& values)
 {
-    active_record_relation(this).unscoped().update(values);
+    active_record_relation(this).where("id = {}", id).update(values);
 }
 
 void uva::database::table::update(size_t id, const std::string& key, const var& value) {
