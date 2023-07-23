@@ -801,7 +801,14 @@ void uva::database::active_record_relation::update(const std::map<std::string, v
 
 uva::database::active_record_relation& uva::database::active_record_relation::select(const std::string& select)
 {
-    m_select = select;
+    if(m_select.size() && m_select != "*") {
+        m_select.push_back(',');
+        m_select.push_back(' ');
+
+        m_select += select;
+    }  else {
+        m_select = select;
+    }
 
     return *this;
 }
