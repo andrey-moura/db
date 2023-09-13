@@ -148,6 +148,7 @@ namespace uva
             virtual bool insert(table* table, size_t id, const std::vector<std::map<std::string, std::string>>& relations) = 0;
             virtual void update(size_t id, const std::string& key, const std::string& value, table* table) = 0;
             virtual void destroy(size_t id, uva::database::table* table) = 0;
+            virtual void drop_column(uva::database::table* table, const std::string& name) = 0;
             virtual void add_column(uva::database::table* table, const std::string& name, const std::string& type, const std::string& default_value) = 0;
             virtual void change_column(uva::database::table* table, const std::string& name, const std::string& type) = 0;
             virtual void begin_transaction() = 0;
@@ -175,6 +176,7 @@ namespace uva
                 virtual bool insert(table* table, size_t id, const std::vector<std::map<std::string, std::string>>& relations) override;
                 virtual void update(size_t id, const std::string& key, const std::string& value, table* table) override;
                 virtual void destroy(size_t id, uva::database::table* table) override;
+                virtual void drop_column(uva::database::table* table, const std::string& name);
                 virtual void add_column(uva::database::table* table, const std::string& name, const std::string& type, const std::string& default_value) override;
                 virtual void change_column(uva::database::table* table, const std::string& name, const std::string& type) override;
                 virtual void begin_transaction() override;
@@ -314,6 +316,7 @@ namespace uva
             static std::map<std::string, table*>& get_tables();
             static table* get_table(const std::string& name);
             std::string& at(size_t id, const std::string& key);
+            void drop_column(const std::string& name);
             void add_column(const std::string& name, const std::string& type, const std::string& default_value);
             void change_column(const std::string& name, const std::string& type);
             std::vector<std::pair<std::string, std::string>>::const_iterator find_column(const std::string& col) const;
@@ -397,6 +400,7 @@ namespace uva
         public:
             void add_table(const std::string& table_name, const std::vector<std::pair<std::string, std::string>>& cols);
             void drop_table(const std::string& table_name);
+            void drop_column(const std::string& table_name, const std::string& name);
             void add_column(const std::string& table_name, const std::string& name, const std::string& type, const std::string& default_value) const;
             void add_index(const std::string& table_name, const std::string& column);
             void change_column(const std::string& table_name, const std::string& name, const std::string& type) const;

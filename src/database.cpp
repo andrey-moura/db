@@ -297,23 +297,35 @@ void uva::database::sqlite3_connection::destroy(size_t id, uva::database::table*
     }
 }
 
+void uva::database::sqlite3_connection::drop_column(uva::database::table* table, const std::string& name)
+{
+    char* error_msg = nullptr;
+    std::string sql = std::format("ALTER TABLE {} DROP COLUMN {}", table->m_name, name);
+
+    int error = sqlite3_exec(m_database, sql.c_str(), nullptr, nullptr, &error_msg);
+
+    if (error) {
+        std::string error_report = error_msg;
+        sqlite3_free(error_msg);
+
+        uva::console::log_error(error_report);
+        throw std::runtime_error(error_report);
+    }
+}
+
 void uva::database::sqlite3_connection::add_column(uva::database::table* table, const std::string& name, const std::string& type, const std::string& default_value)
 {
-    std::string cols_definitions = "ID INT PRIMARY KEY NOT NULL";
+    char* error_msg = nullptr;
+    std::string sql = std::format("ALTER TABLE {} ADD COLUMN {} {}", table->m_name, name, type);
 
-    for (const auto& row : table->m_columns)
-    {
-        cols_definitions += ", " + row.first + " " + row.second;
-    }
+    int error = sqlite3_exec(m_database, sql.c_str(), nullptr, nullptr, &error_msg);
 
-    cols_definitions += ", " + name + " " + type + " DEFAULT \"" + default_value + "\"";
+    if (error) {
+        std::string error_report = error_msg;
+        sqlite3_free(error_msg);
 
-    std::string new_definition = table->m_name + "(" + cols_definitions + ")";
-
-    alter_table(table, new_definition);
-
-    for (auto it = table->m_relations.begin(); it != table->m_relations.end(); ++it) {
-        it->second.insert({ name, default_value });
+        uva::console::log_error(error_report);
+        throw std::runtime_error(error_report);
     }
 }
 
@@ -363,6 +375,12 @@ std::string& uva::database::table::at(size_t id, const std::string& key) {
     }
 
     return colIt->second;
+}
+
+void uva::database::table::drop_column(const std::string& name) {
+
+    uva::database::basic_connection::get_connection()->drop_column(this, name);
+
 }
 
 void uva::database::table::add_column(const std::string& name, const std::string& type, const std::string& default_value) {
@@ -1604,6 +1622,13 @@ void uva::database::basic_migration::add_index(const std::string& table_name, co
 {
     uva::database::active_record_relation().commit_without_prepare(std::format("CREATE INDEX IF NOT EXISTS idx_{}_on_{} ON {}({});", table_name, uva::string::replace(column, ',', '_'), table_name, column));
 }
+
+void uva::database::basic_migration::drop_column(const std::string& table_name, const std::string& name)
+{
+    uva::database::table* table = uva::database::table::get_table(table_name);
+    table->drop_column(name);
+}
+
 
 void uva::database::basic_migration::add_column(const std::string& table_name, const std::string& name, const std::string& type, const std::string& default_value) const
 {

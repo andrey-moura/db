@@ -154,7 +154,7 @@ void database_controller::new_model()
         return;
     }
 
-    var table_name = name.pluralize().downcase();
+    var table_name = name.pluralize().to_downcase();
     var model_name = name.capitalize();
 
     create_model(model_name);
