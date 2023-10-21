@@ -13,6 +13,13 @@
 
 #include "sqlite3.h"
 
+#if defined __has_include
+#   if __has_include (<pqxx/pqxx>)
+#       undef null
+#       include <pqxx/pqxx>
+#   endif
+#endif
+
 #include <core.hpp>
 #include <console.hpp>
 #include <diagnostics.hpp>
@@ -30,30 +37,27 @@
 public:\
     record() : uva::database::basic_active_record() { } \
     record(const record& other) : uva::database::basic_active_record(other) { } \
-    record(const std::map<std::string, var>& values) : uva::database::basic_active_record(values) { } \
-    record(std::map<var, var>&& values) : uva::database::basic_active_record(std::move(values)) { } \
-    record(std::map<std::string, var>&& values) : uva::database::basic_active_record(std::move(values)) { } \
+    record(var&& values) : uva::database::basic_active_record(std::move(values)) { } \
+    record(const var& values) : uva::database::basic_active_record(values) { } \
     const uva::database::table* get_table() const override { return table(); } \
     uva::database::table* get_table() override { return table(); } \
     static uva::database::table* table(); \
     static size_t create() { return table()->create(); } \
-    static record create(std::map<std::string, var>&& relations) {\
-        record r(std::forward<std::map<std::string, var>>(relations)); \
+    static record create(std::map<var, var>&& relations) {\
+        record r(std::move(relations)); \
         r.save();\
-        r = record::find_by("id={}", r["id"]);\
         return r;\
     } \
-    static record create(const std::map<std::string, var>& relations) {\
+    static record create(const std::map<var, var>& relations) {\
         record r(relations); \
         r.save();\
-        r = record::find_by("id={}", r["id"]);\
         return r;\
     } \
     static void create(std::vector<var>& rows, const std::vector<std::string>& columns) { table()->create(rows, columns); } \
     static void create(var& rows, const std::vector<std::string>& columns) { table()->create(rows, columns); } \
     static void create(std::vector<std::map<std::string, var>>& relations) { table()->create(relations); } \
     static size_t column_count() { return table()->m_columns.size(); } \
-    static std::vector<std::pair<std::string, std::string>>& columns() { return table()->m_columns; } \
+    static std::map<std::string, std::string>& columns() { return table()->m_columns; } \
     static uva::database::active_record_relation all() { return uva::database::active_record_relation(table()).select("*").from(table()->m_name);  } \
     template<class... Args> static uva::database::active_record_relation where(const std::string where, Args const&... args) { return record::all().where(where, args...); }\
     static uva::database::active_record_relation from(const std::string& from) { return record::all().from(from); } \
@@ -83,7 +87,6 @@ public:\
     static record first() { return all().first(); }\
     record& operator=(const record& other)\
     {\
-        id = other.id;\
         values = other.values;\
         return *this;\
     }\
@@ -141,18 +144,22 @@ namespace uva
         public:
             basic_connection();
         public:
-            virtual bool open() = 0;
-            virtual bool is_open() const = 0;
-            virtual bool create_table(const table* table) const = 0;
-            virtual bool insert(table* table, size_t id, const std::map<std::string, std::string>& relations) = 0;
-            virtual bool insert(table* table, size_t id, const std::vector<std::map<std::string, std::string>>& relations) = 0;
-            virtual void update(size_t id, const std::string& key, const std::string& value, table* table) = 0;
-            virtual void destroy(size_t id, uva::database::table* table) = 0;
-            virtual void drop_column(uva::database::table* table, const std::string& name) = 0;
-            virtual void add_column(uva::database::table* table, const std::string& name, const std::string& type, const std::string& default_value) = 0;
-            virtual void change_column(uva::database::table* table, const std::string& name, const std::string& type) = 0;
-            virtual void begin_transaction() = 0;
-            virtual void end_transaction() = 0;
+            virtual bool open() { return false; };
+            virtual bool is_open() const { return false; };
+            virtual bool create_table(const table* table) const { return false; };
+            virtual bool insert(table* table, size_t id, const std::map<std::string, std::string>& relations) { return false; };
+            virtual bool insert(table* table, size_t id, const std::vector<std::map<std::string, std::string>>& relations) { return false; };
+            virtual void update(size_t id, const std::string& key, const std::string& value, table* table) { };
+            virtual void destroy(size_t id, uva::database::table* table) { };
+            virtual void drop_column(uva::database::table* table, const std::string& name) { };
+            virtual void add_column(uva::database::table* table, const std::string& name, const std::string& type, const std::string& default_value) { };
+            virtual void change_column(uva::database::table* table, const std::string& name, const std::string& type) { };
+            virtual void begin_transaction() { };
+            virtual void end_transaction() { };
+
+            virtual void run_sql(const std::string& sql) { };
+            virtual var select_all(const std::string& sql) { };
+
             static basic_connection* get_connection();
         };
 
@@ -170,17 +177,53 @@ namespace uva
                 virtual bool open() override;
                 virtual bool is_open() const override;
                 bool open(const std::filesystem::path& path);
-                virtual bool create_table(const table* table) const override;
-                void alter_table(uva::database::table* table, const std::string& new_signature);
-                virtual bool insert(table* table, size_t id, const std::map<std::string, std::string>& relations) override;
-                virtual bool insert(table* table, size_t id, const std::vector<std::map<std::string, std::string>>& relations) override;
-                virtual void update(size_t id, const std::string& key, const std::string& value, table* table) override;
-                virtual void destroy(size_t id, uva::database::table* table) override;
-                virtual void drop_column(uva::database::table* table, const std::string& name);
-                virtual void add_column(uva::database::table* table, const std::string& name, const std::string& type, const std::string& default_value) override;
-                virtual void change_column(uva::database::table* table, const std::string& name, const std::string& type) override;
-                virtual void begin_transaction() override;
-                virtual void end_transaction() override;
+
+                virtual void run_sql(const std::string& sql) override;
+                virtual var select_all(const std::string& sql) override;
+
+                //remove this and use connection::run_sql
+                virtual bool create_table(const table* table) const override ;
+                void alter_table(uva::database::table* table, const std::string& new_signature) ;
+                virtual bool insert(table* table, size_t id, const std::map<std::string, std::string>& relations) override ;
+                virtual bool insert(table* table, size_t id, const std::vector<std::map<std::string, std::string>>& relations) override ;
+                virtual void update(size_t id, const std::string& key, const std::string& value, table* table) override ;
+                virtual void destroy(size_t id, uva::database::table* table) override ;
+                virtual void drop_column(uva::database::table* table, const std::string& name) ;
+                virtual void add_column(uva::database::table* table, const std::string& name, const std::string& type, const std::string& default_value) override ;
+                virtual void change_column(uva::database::table* table, const std::string& name, const std::string& type) override ;
+                virtual void begin_transaction() override ;
+                virtual void end_transaction() override ;
+        };
+
+        class postgres_connection : public basic_connection
+        {
+            public:
+                postgres_connection() = default;
+                postgres_connection(var params = var::map());
+                ~postgres_connection();
+            protected:
+                std::shared_ptr<pqxx::connection> m_pqxx_connection = nullptr;
+            public:
+                std::shared_ptr<pqxx::connection> get_pqxx_connection() const { return m_pqxx_connection; }
+                virtual bool open() override { return false; }
+                virtual bool is_open() const override { return false; }
+                bool open(const std::filesystem::path& path) { return false; }
+
+                virtual void run_sql(const std::string& sql) override;
+                virtual var select_all(const std::string& sql) override;
+
+                //remove this and use connection::run_sql
+                virtual bool create_table(const table* table) const override {};
+                void alter_table(uva::database::table* table, const std::string& new_signature) {};
+                virtual bool insert(table* table, size_t id, const std::map<std::string, std::string>& relations) override { return false; }
+                virtual bool insert(table* table, size_t id, const std::vector<std::map<std::string, std::string>>& relations) override {};
+                virtual void update(size_t id, const std::string& key, const std::string& value, table* table) override {};
+                virtual void destroy(size_t id, uva::database::table* table) override {};
+                virtual void drop_column(uva::database::table* table, const std::string& name) {};
+                virtual void add_column(uva::database::table* table, const std::string& name, const std::string& type, const std::string& default_value) override {};
+                virtual void change_column(uva::database::table* table, const std::string& name, const std::string& type) override {};
+                virtual void begin_transaction() override {};
+                virtual void end_transaction() override {};
         };
  
         using result = std::vector<std::pair<std::string, std::string>>;
@@ -218,13 +261,28 @@ namespace uva
             std::vector<std::vector<var>> m_results;
             std::string to_sql() const;
         public:
-            void update(const std::map<std::string, var>& update);
             active_record_relation& select(const std::string& select);
             active_record_relation& from(const std::string& from);
             template<class... Args>
-            active_record_relation& where(const std::string where, Args... args)
+            active_record_relation& where(const std::string format, Args... args)
             {
-                std::string __where = std::vformat(where, std::make_format_args(args...));
+                std::vector<var> parameters =  {{ args ... }};
+                std::string __where;
+                __where.reserve(format.size() + (parameters.size() * 100));
+
+                size_t current_parameter = 0;
+
+                for(size_t i = 0; i < format.size(); ++i)
+                {
+                    if(format[i] == '{' && i + 1 < format.size() && format[i+1] == '}') {
+                        ++i;
+                        __where.append(parameters[current_parameter].to_typed_s('[', ']', false));
+                        ++current_parameter;
+                    } else {
+                        __where.push_back(format[i]);
+                    }
+                }
+    
                 append_where(__where);
                 return *this;
             }
@@ -250,7 +308,7 @@ namespace uva
             std::vector<var> pluck(const std::string& col);
             std::vector<std::vector<var>> pluckm(const std::string& cols);
             size_t count(const std::string& count = "*") const;
-            std::map<std::string, var> first();
+            var first();
             void each_with_index(std::function<void(std::map<std::string, var>&, const size_t&)> func);
             void each(std::function<void(std::map<std::string, var>&)> func);
             template<class record>
@@ -270,11 +328,14 @@ namespace uva
                 });
             }
             template<class... Args>
-            std::map<std::string, var> find_by(std::string where, Args... args)
+            var find_by(std::string where, Args... args)
             {
                 return active_record_relation(*this).where(where, std::forward<Args>(args)...).first();
             }
             std::map<std::string, var> find_or_create_by(std::map<var, var>&& v);
+
+            var create(var values);
+            var update(var values);
         public:
             bool empty();
             std::map<std::string, var> operator[](const size_t& index);
@@ -292,11 +353,11 @@ namespace uva
         class table
         {
         public:
-            table(const std::string& name, const std::vector<std::pair<std::string, std::string>>& cols);
+            table(const std::string& name, const std::map<std::string, std::string>& cols);
             table(const std::string& name);
 
             std::string m_name;
-            std::vector<std::pair<std::string, std::string>> m_columns;
+            std::map<std::string, std::string> m_columns;
             std::map<size_t, std::map<std::string, std::string>> m_relations;
             size_t create();
             size_t create(const std::map<std::string, var>& relations);
@@ -322,19 +383,27 @@ namespace uva
             std::vector<std::pair<std::string, std::string>>::const_iterator find_column(const std::string& col) const;
             std::vector<std::pair<std::string, std::string>>::iterator find_column(const std::string& col);
             static void add_table(uva::database::table* table);
+
+            /* SQL */
+            static void create_table(uva::database::table* table);
         };
-        class basic_active_record_column : public var
+        class basic_active_record_column
         {
         public:
             std::string key;
             basic_active_record* active_record;
         public:
             basic_active_record_column(const std::string& __key, basic_active_record* __record);
-        public:
-            template<typename T>
-            basic_active_record_column& operator=(const T& t);
-
             ~basic_active_record_column();
+        public:
+            const var* operator->() const;
+            var* operator->();
+
+            var& operator*() const;
+            var& operator*();
+        
+            operator var() const;
+            
         };
         class basic_active_record
         {              
@@ -342,15 +411,19 @@ namespace uva
             basic_active_record();
             basic_active_record(const basic_active_record& record);
             basic_active_record(basic_active_record&& record);
-            basic_active_record(const std::map<std::string, var>& value);
-            basic_active_record(std::map<std::string, var>&& value);
-            basic_active_record(std::map<var, var>&& value);
+            basic_active_record(var&& values);
+            basic_active_record(const var& values);
         public:
             bool present() const;
             void destroy();            
+        private:
+            virtual void call_before_create();
+            virtual void call_before_save();
+            virtual void call_before_update();
         protected:
             virtual const table* get_table() const = 0;
             virtual table* get_table() = 0;
+            virtual void before_create() { };
             virtual void before_save() { };
             virtual void before_update() { };
             virtual const std::string& class_name() const = 0;
@@ -369,15 +442,13 @@ namespace uva
             void save();
             void update(const std::string& col, const var& value);
             void update(const std::map<std::string, var>& values);
-
-            void update_exposed_column(const std::string& __key, basic_active_record_column* __column);
-            void update_exposed_columns();
-            void expose_column(const std::string& __key, basic_active_record_column* __column);
         public:
             var& operator[](const char* str);
             const var& operator[](const char* str) const;
             var& operator[](const std::string& str);
             const var& operator[](const std::string& str) const;
+
+            operator var() const;
         };
         class basic_migration : public basic_active_record
         {
@@ -398,30 +469,19 @@ namespace uva
         protected:
             void call_change();
         public:
-            void add_table(const std::string& table_name, const std::vector<std::pair<std::string, std::string>>& cols);
+            void add_table(const std::string& table_name, const std::map<std::string, std::string>& cols);
             void drop_table(const std::string& table_name);
             void drop_column(const std::string& table_name, const std::string& name);
             void add_column(const std::string& table_name, const std::string& name, const std::string& type, const std::string& default_value) const;
             void add_index(const std::string& table_name, const std::string& column);
             void change_column(const std::string& table_name, const std::string& name, const std::string& type) const;
         };
-        template <typename T>
-        inline basic_active_record_column &basic_active_record_column::operator=(const T &t)
-        {
-            {
-                var& v = active_record->at(key);
-                v = t;
-                type =         v.type;
-                m_value_ptr =  v.m_value_ptr;
-                return *this;
-            }
-        }
     };
 };
 
 template <>
 struct std::formatter<uva::database::basic_active_record_column> : std::formatter<std::string> {
     auto format(const uva::database::basic_active_record_column& v, format_context& ctx) {
-        return std::format_to(ctx.out(), "{}", v.to_s());
+        return std::format_to(ctx.out(), "{}", v->to_s());
     }
 };

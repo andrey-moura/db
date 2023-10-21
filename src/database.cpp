@@ -1,4 +1,5 @@
 #include <database.hpp>
+#include <time.hpp>
 
 // STATIC MEMBERS
 
@@ -83,7 +84,7 @@ bool uva::database::sqlite3_connection::open()
     std::filesystem::path folder = m_database_path.parent_path();
     if (!std::filesystem::exists(folder)) {
         if (!std::filesystem::create_directories(folder)) {
-            throw std::runtime_error("unknow error while creating databse directories.");
+            throw std::runtime_error("unknow error while creating database directories.");
         }
     }
     int error = sqlite3_open(m_database_path.string().c_str(), &m_database);    
@@ -98,175 +99,28 @@ bool uva::database::sqlite3_connection::open(const std::filesystem::path& path)
     m_database_path = path;
     int error = sqlite3_open(m_database_path.string().c_str(), &m_database);
     if (error) {
-        throw std::runtime_error("unknow error while opening databse.");
+        throw std::runtime_error("unknow error while opening database.");
     }
     return m_database;
 }
 
 bool uva::database::sqlite3_connection::create_table(const uva::database::table* table) const
 {
-    std::string error_report;
-    std::string sql;
-
-    auto elapsed = uva::diagnostics::measure_function([&]{
-        /* Create SQL statement */
-
-        sql = "CREATE TABLE IF NOT EXISTS " + table->m_name + "(";
-
-        for(const auto& col : table->m_columns)
-        {
-            sql += col.first + " " + col.second + ", ";
-        }
-
-        sql.pop_back();
-        sql.pop_back();
-
-        sql += " );";
-
-        /* Execute SQL statement */
-
-        char* error_msg = nullptr;
-        int error = sqlite3_exec(m_database, sql.c_str(),
-            [](void *NotUsed, int columnCount, char **columnValue, char **value) {
-            return 0;
-        }, 0, &error_msg);
-
-        if (error) {
-            error_report = error_msg;
-            sqlite3_free(error_msg);
-        }
-    });
-
-    uva::console::color_code color_code;
-
-    if(error_report.empty()) {
-        color_code = uva::console::color_code::blue;
-    } else {
-        color_code = uva::console::color_code::red;
-    }
-
-    #ifdef USE_FMT_FORMT
-        std::string result = std::format("({} ms) {}", std::chrono::duration_cast<std::chrono::milliseconds>(elapsed).count(), sql);
-    #else
-        std::string result = std::format("({}) {}", std::chrono::duration_cast<std::chrono::milliseconds>(elapsed), sql);
-    #endif
-
-    std::cout << uva::console::color(color_code) << result << std::endl;
-
-    if(!error_report.empty()) {
-        std::cout << uva::console::color(uva::console::color_code::red) << error_report << std::endl;
-        throw std::runtime_error(error_report);
-    }
-
-    return true;
+ 
 }
 
 void uva::database::sqlite3_connection::alter_table(uva::database::table* table, const std::string& new_signature)
 {
-    std::string cols = "ID";
 
-    for (const auto& row : table->m_columns)
-    {
-        cols += ", " + row.first;
-    }
-
-    std::string oldTableName = table->m_name + "_old";
-
-    char* error_msg = nullptr;
-    std::string sql =
-
-        "PRAGMA foreign_keys = off;"
-        "BEGIN TRANSACTION;"
-        "ALTER TABLE " + table->m_name + " RENAME TO " + oldTableName + ";"
-        "CREATE TABLE " + new_signature + ";"
-        "INSERT INTO " + table->m_name + " (" + cols + ") SELECT " + cols + " FROM " + oldTableName + ";"
-        "DROP TABLE " + oldTableName + ";"
-        "COMMIT; "
-        "PRAGMA foreign_keys = on;";
-
-    int error = sqlite3_exec(m_database, sql.c_str(), nullptr, nullptr, &error_msg);
-    if (error) {
-        std::string error_report = error_msg;
-        sqlite3_free(error_msg);
-        throw std::runtime_error(error_report);
-    }
 }
 
 bool uva::database::sqlite3_connection::insert(table* table, size_t id, const std::map<std::string, std::string>& relations) {
-    char* error_msg = nullptr;
-    std::string sql = "INSERT INTO " + table->m_name + " VALUES(" + std::to_string(id);
-    
-    for(const auto& col : table->m_columns) {
-        sql += ", \"";
-        auto it = relations.find(col.first);
-        if(it != relations.end()) {
-            if (col.second == "TEXT") {
-                sql.reserve(sql.size() + it->second.size());
-                for (const char& c : it->second) {
-                    if (c == '\"') {
-                        sql.push_back('\"');
-                    }
-                    sql.push_back(c);
-                }                
-            }
-            else {
-                sql += it->second;
-            }
-        }
-        sql += "\"";
-    }
-    
-    sql += ");";
-    int error = sqlite3_exec(m_database, sql.c_str(), nullptr, nullptr, &error_msg);
-            
-    if (error) {
-        std::string error_report = error_msg;
-        sqlite3_free(error_msg);
-        throw std::runtime_error(error_report);
-    }
-    return true;
+
 }
 
 bool uva::database::sqlite3_connection::insert(table* table, size_t id, const std::vector<std::map<std::string, std::string>>& relations)
 {
-    //todo: merge those functions
-    char* error_msg = nullptr;
-    std::string sql = "INSERT INTO " + table->m_name + " VALUES\n";
-        
-    for (const auto& relation : relations) {
-        sql += "(" + std::to_string(id++);
-        for (const auto& col : table->m_columns) {
-            sql += ", \"";
-            auto it = relation.find(col.first);
-            if (it != relation.end()) {
-                if (col.second == "TEXT") {
-                    sql.reserve(sql.size() + it->second.size());
-                    for (const char& c : it->second) {
-                        if (c == '\"') {
-                            sql.push_back('\"');
-                        }
-                        sql.push_back(c);
-                    }
-                }
-                else {
-                    sql += it->second;
-                }
-            }
-            sql += "\"";
-        }
-        sql += "),\n";
-    }
 
-    sql[sql.size() - 2] = ';';
-    
-    int error = sqlite3_exec(m_database, sql.c_str(), nullptr, nullptr, &error_msg);
-
-    if (error) {
-        std::string error_report = error_msg;
-        sqlite3_free(error_msg);
-        throw std::runtime_error(error_report);
-    }
-    return true;
 }
 
 bool uva::database::sqlite3_connection::is_open() const
@@ -275,106 +129,43 @@ bool uva::database::sqlite3_connection::is_open() const
 }
 
 void uva::database::sqlite3_connection::update(size_t id, const std::string& key, const std::string& value, uva::database::table* table) {
-    char* error_msg = nullptr;
-    std::string sql = "UPDATE " + table->m_name + " SET " + key + " = '" + value + "' where id = " + std::to_string(id);    
-    int error = sqlite3_exec(m_database, sql.c_str(), nullptr, nullptr, &error_msg);    
-    if (error) {
-        std::string error_report = error_msg;
-        sqlite3_free(error_msg);
-        throw std::runtime_error(error_report);
-    }
+
 }
 
 void uva::database::sqlite3_connection::destroy(size_t id, uva::database::table* table)
 {
-    char* error_msg = nullptr;
-    std::string sql = "DELETE FROM " + table->m_name + " where id = " + std::to_string(id);    
-    int error = sqlite3_exec(m_database, sql.c_str(), nullptr, nullptr, &error_msg);    
-    if (error) {
-        std::string error_report = error_msg;
-        sqlite3_free(error_msg);
-        throw std::runtime_error(error_report);
-    }
+
 }
 
 void uva::database::sqlite3_connection::drop_column(uva::database::table* table, const std::string& name)
 {
-    char* error_msg = nullptr;
-    std::string sql = std::format("ALTER TABLE {} DROP COLUMN {}", table->m_name, name);
 
-    int error = sqlite3_exec(m_database, sql.c_str(), nullptr, nullptr, &error_msg);
-
-    if (error) {
-        std::string error_report = error_msg;
-        sqlite3_free(error_msg);
-
-        uva::console::log_error(error_report);
-        throw std::runtime_error(error_report);
-    }
 }
 
 void uva::database::sqlite3_connection::add_column(uva::database::table* table, const std::string& name, const std::string& type, const std::string& default_value)
 {
-    char* error_msg = nullptr;
-    std::string sql = std::format("ALTER TABLE {} ADD COLUMN {} {}", table->m_name, name, type);
 
-    int error = sqlite3_exec(m_database, sql.c_str(), nullptr, nullptr, &error_msg);
-
-    if (error) {
-        std::string error_report = error_msg;
-        sqlite3_free(error_msg);
-
-        uva::console::log_error(error_report);
-        throw std::runtime_error(error_report);
-    }
 }
 
 void uva::database::sqlite3_connection::change_column(uva::database::table* table, const std::string& name, const std::string& type)
 {
-    std::string cols_definitions = "ID INT PRIMARY KEY NOT NULL";
 
-    auto it = table->find_column(name);
-
-    it->second = type;
-
-    for (const auto& row : table->m_columns)
-    {
-        cols_definitions += ", " + row.first + " " + row.second;
-    }    
-
-    std::string new_definition = table->m_name + "(" + cols_definitions + ")";
-
-    alter_table(table, new_definition);
 }
 
 void uva::database::sqlite3_connection::begin_transaction() 
 {
-    active_record_relation().commit("BEGIN TRANSACTION;");
-    enable_query_cout_printing = false;
+  
 }
 
 void uva::database::sqlite3_connection::end_transaction() 
 {
-    enable_query_cout_printing = enable_query_cout_printing_default;
-    active_record_relation().commit("END TRANSACTION;");
+
 }
 
 //END SQLITE3 CONNECTION
 
 std::string& uva::database::table::at(size_t id, const std::string& key) {
-    auto it = m_relations.find(id);
 
-    if (it == m_relations.end()) {
-        throw std::out_of_range(m_name + " do not contains a record with id " + std::to_string(id));
-    }
-
-    auto colIt = it->second.find(key);
-
-    if (colIt == it->second.end()) {
-        throw std::out_of_range(m_name + " do not contains a column with name " + key);
-    }
-
-    return colIt->second;
 }
 
 void uva::database::table::drop_column(const std::string& name) {
@@ -397,7 +188,7 @@ void uva::database::table::change_column(const std::string& name, const std::str
 
 //TABLE
 
-uva::database::table::table(const std::string& name, const std::vector<std::pair<std::string, std::string>>& cols)
+uva::database::table::table(const std::string& name, const std::map<std::string, std::string>& cols)
     : m_name(name), m_columns(cols)
 {
     uva::database::table::add_table(this);
@@ -421,6 +212,27 @@ void uva::database::table::add_table(uva::database::table* table)
     tables.insert({table->m_name, table});
 }
 
+std::string sql;
+void uva::database::table::create_table(uva::database::table* table)
+{
+    /* Create SQL statement */
+    sql.reserve(1024);
+    
+    sql = "CREATE TABLE IF NOT EXISTS " + table->m_name + "(";
+
+    for(const auto& col : table->m_columns)
+    {
+        sql += col.first + " " + col.second + ", ";
+    }
+
+    sql.pop_back();
+    sql.pop_back();
+
+    sql += " );";
+
+    uva::database::basic_connection::get_connection()->run_sql(sql);
+}
+
 uva::database::table* uva::database::table::get_table(const std::string& name) {
 
     auto tables = get_tables();
@@ -432,15 +244,15 @@ uva::database::table* uva::database::table::get_table(const std::string& name) {
         if(name == "database_migrations") {
             uva::database::table * info_table = new uva::database::table("database_migrations",
             {
-                { "id",         "INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL" },
+                { "id",         "SERIAL PRIMARY KEY" },
                 { "title",      "TEXT NOT NULL" },
-                { "updated_at", "INTEGER DEFAULT (STRFTIME('%s'))" },
-                { "created_at", "INTEGER DEFAULT (STRFTIME('%s'))" },
-                { "removed",    "INTEGER DEFAULT 0" },    
+                { "updated_at", "TIMESTAMP NOT NULL" },
+                { "created_at", "TIMESTAMP NOT NULL" },
+                { "removed",    "BOOLEAN NOT NULL DEFAULT false" },    
             });
 
             //The table is only created if not exists
-            uva::database::basic_connection::get_connection()->create_table(info_table);
+            uva::database::table::create_table(info_table);
 
             return info_table;
         } else {
@@ -458,10 +270,13 @@ size_t uva::database::table::create(const std::map<std::string, var>& relations)
 {
     auto keys_values = uva::string::split(relations);
 
-    auto relation = uva::database::active_record_relation(this).insert(keys_values.second).columns(keys_values.first).into(m_name).returning("id").unscoped();
-    relation.commit_without_prepare(relation.to_sql());
+    auto relation = uva::database::active_record_relation(this).unscoped().insert(keys_values.second).columns(keys_values.first).into(m_name).returning("id");
 
-    return relation[0]["id"].to_i();
+    //var results = 
+
+    //return relation[0]["id"].to_i();
+
+    return 0;
 }
 
 void uva::database::table::create(std::vector<var>& relations, const std::vector<std::string>& columns)
@@ -515,12 +330,7 @@ void uva::database::table::create(std::vector<std::vector<var>>& values, const s
 }
 
 size_t uva::database::table::create() {
-    std::map<std::string, std::string> empty_relations;
-    for (const auto& row : m_columns) {
-        empty_relations.insert({ row.first, { "" } });
-    }
-    //return create(empty_relations);
-    return 0;
+
 }
 
 void uva::database::table::destroy(size_t id) {
@@ -565,19 +375,11 @@ size_t uva::database::table::last() {
 }
 
 std::vector<std::pair<std::string, std::string>>::iterator uva::database::table::find_column(const std::string& col) {
-    auto it = std::find_if(m_columns.begin(), m_columns.end(), [&col](const std::pair<std::string, std::string>& pair) { return pair.first == col; });
-    if (it == m_columns.end()) {        
-        throw std::out_of_range("There is no column named '" + col + "' in table '" + m_name + "'");
-    }
-    return it;
+
 }
 
 std::vector<std::pair<std::string, std::string>>::const_iterator uva::database::table::find_column(const std::string& col) const {
-    auto it = std::find_if(m_columns.begin(), m_columns.end(), [&col](const std::pair<std::string, std::string>& pair) { return pair.first == col; });
-    if (it == m_columns.end()) {
-        throw std::out_of_range("There is no column named '" + col + "' in table '" + m_name + "'");
-    }
-    return it;
+
 }
 
 void uva::database::table::update(size_t id, const std::map<std::string, var>& values)
@@ -601,36 +403,34 @@ uva::database::basic_active_record::basic_active_record()
 uva::database::basic_active_record::basic_active_record(const basic_active_record& _record)
     : values(_record.values)
 {
-    id = at("id");
 }
 
 uva::database::basic_active_record::basic_active_record(basic_active_record&& _record)
     : values(std::move(_record.values))
 {
-    _record.id = 0;
-    id = _record.id;
 }
 
-uva::database::basic_active_record::basic_active_record(const std::map<std::string, var>& _values)
-    : values(_values)
+uva::database::basic_active_record::basic_active_record(var &&__values)
 {
-   id = at("id");
+    if(__values.is_a<var::map>()) {
+        for(auto& pair : __values.as<var::map>())
+        {
+            const std::string& key = pair.first.as<var::string>();
+            const var& value = pair.second;
+
+            values[std::move(const_cast<std::string&>(key))] = std::move(const_cast<var&>(value));
+        }
+
+        __values.clear();
+    }
 }
 
-uva::database::basic_active_record::basic_active_record(std::map<std::string, var>&& _values)
-    : values(std::forward<std::map<std::string, var>>(_values))
+uva::database::basic_active_record::basic_active_record(const var &__values)
 {
-    id = at("id");
-}
-
-uva::database::basic_active_record::basic_active_record(std::map<var, var>&& __values)
-{
-    for(const auto& value : __values)
+    for(const auto& value : __values.as<var::map>())
     {
         values[value.first.to_s()] = value.second;
     }
-
-    id = at("id");
 }
 
 bool uva::database::basic_active_record::present() const {
@@ -648,15 +448,34 @@ bool uva::database::basic_active_record::present() const {
 }
 
 void uva::database::basic_active_record::destroy() {
-    get_table()->destroy(id);
-    id = -1;
+
+}
+
+void uva::database::basic_active_record::call_before_create()
+{
+    values["created_at"] = uva::time::iso_now();
+    call_before_save();
+
+    before_create();
+}
+
+void uva::database::basic_active_record::call_before_save()
+{
+    values["updated_at"] = uva::time::iso_now();
+
+    before_save();
+}
+
+void uva::database::basic_active_record::call_before_update()
+{
+    call_before_save();
+
+    before_update();
 }
 
 uva::database::basic_active_record& uva::database::basic_active_record::operator=(const uva::database::basic_active_record& other)
 {
     values = other.values;
-    id = other.id;
-    
     return *this;
 }
 
@@ -664,14 +483,6 @@ var& uva::database::basic_active_record::at(const std::string& str)
 {
     var& value = values[str];
     return value;
-
-    //return it->second;auto it = values.find(str);
-
-    // if(it == values.end()) {
-    //     throw std::runtime_error(std::format("Record from {} has no column named {}", get_table()->m_name, str));
-    // }
-
-    //return it->second;
 }
 
 const var& uva::database::basic_active_record::at(const std::string& str) const
@@ -713,16 +524,15 @@ std::string uva::database::basic_active_record::to_s() const
 }
 
 void uva::database::basic_active_record::save()
-{
-    before_save();
-    
+{   
     auto it = values.find("id"); 
 
-    if(it == values.end() || it->second.is_null()) {
-       id = get_table()->create(values);
+    if(it == values.end() || it->second.is_null() || it->second.type == var::var_type::undefined) {
+        call_before_create();
+        uva::database::active_record_relation(get_table()).create(values);
     } else {
-        before_update();
-        get_table()->update(it->second, values);
+        call_before_update();
+        uva::database::active_record_relation(get_table()).update(values);
     }
 }
 
@@ -750,52 +560,7 @@ void uva::database::basic_active_record::update(const std::map<std::string, var>
     before_save();
 }
 
-void uva::database::basic_active_record::update_exposed_column(const std::string &__key, basic_active_record_column *__column)
-{
-    auto it = values.find(__key);
-
-    if(it != values.end()) {
-        __column->m_value_ptr = it->second.m_value_ptr;
-        __column->type        = it->second.type;
-    }
-}
-
-void uva::database::basic_active_record::update_exposed_columns()
-{
-    for(auto& value : values) {
-        auto it = columns.find(value.first);
-        update_exposed_column(value.first, it->second);
-    }
-}
-
-void uva::database::basic_active_record::expose_column(const std::string &__key, basic_active_record_column *__column)
-{
-    columns[__key] = __column;
-
-    auto it = values.find(__key);
-
-    if(it != values.end()) {
-        update_exposed_column(__key, __column);
-    }
-}
-
 //END ACTIVE RECORD
-
-//ACTIVE RECORD COLUMN
-
-uva::database::basic_active_record_column::basic_active_record_column(const std::string &__key, basic_active_record *__record)
-    : key(__key), active_record(__record)
-{
-    active_record->expose_column(key, this);
-}
-
-uva::database::basic_active_record_column::~basic_active_record_column()
-{
-    m_value_ptr = nullptr;
-    type        = null;
-}
-
-//END ACTIVE RECORD COLUMN
 
 //MIGRATION
 
@@ -808,13 +573,6 @@ uva::database::active_record_relation::active_record_relation(uva::database::tab
     : m_table(table)
 {
     
-}
-
-void uva::database::active_record_relation::update(const std::map<std::string, var>& update)
-{
-    m_update = update;
-    commit_without_prepare();
-
 }
 
 uva::database::active_record_relation& uva::database::active_record_relation::select(const std::string& select)
@@ -836,35 +594,6 @@ uva::database::active_record_relation& uva::database::active_record_relation::fr
     m_from = from;
 
     return *this;
-}
-
-std::map<std::string, var> uva::database::active_record_relation::where(std::map<var, var> &&v)
-{
-    const std::string separator = " AND ";
-    std::string where = "(";
-    size_t to_reserve = v.size()*64;
-
-    for(const auto& value : v) {
-        where += value.first.to_s();
-        where += " = ";
-
-        if(value.second.type == var::var_type::string) {
-            where.push_back('\'');
-            where += value.second.to_s();
-            where.push_back('\'');
-        } else {
-            where += value.second.to_s();
-        }
-
-        where += separator;
-    }
-
-    where.resize(where.size()-separator.size());
-    where += ") ";
-
-    UVA_CHECK_RESERVED_BUFFER(where, to_reserve);
-
-    return active_record_relation(*this).where(where).first();
 }
 
 uva::database::active_record_relation &uva::database::active_record_relation::group_by(const std::string &group)
@@ -1011,46 +740,48 @@ size_t uva::database::active_record_relation::count(const std::string& count) co
     return 0;
 }
 
-std::map<std::string, var> uva::database::active_record_relation::first()
+var uva::database::active_record_relation::first()
 {
     uva::database::active_record_relation first_relation = *this;
 
     if(!first_relation.m_order.size()) {
-        first_relation.order_by("id");
+        first_relation = first_relation.order_by("id");
     }
 
-    first_relation.limit(1);
+    first_relation = first_relation.limit(1);
 
-    if(first_relation.empty()) {
-        return std::map<std::string, var>();
+    var results = uva::database::basic_connection::get_connection()->select_all(first_relation.to_sql());
+
+    if(!results.size()) {
+        return null;
     }
 
-    return first_relation[0];
+    return results[0];
 }
 
 void uva::database::active_record_relation::each_with_index(std::function<void(std::map<std::string, var>& value, const size_t&)> func)
 {
-    size_t index = 0;
-    size_t last_id = 0;
+    // size_t index = 0;
+    // size_t last_id = 0;
 
     while(true) {
-        uva::database::active_record_relation copy = uva::database::active_record_relation(*this);
+        // uva::database::active_record_relation copy = uva::database::active_record_relation(*this);
 
-        if(index) {
-            copy.where("{} > {}", m_order || "id", last_id).first();
-        }
+        // if(index) {
+        //     copy.where("{} > {}", m_order || "id", last_id).first();
+        // }
 
-        auto first = copy.first();
+        // auto first = copy.first();
 
-        if(first.empty()) {
-            return;
-        } else {
-            last_id = first[m_order || "id"];
+        // if(first.empty()) {
+        //     return;
+        // } else {
+        //     last_id = first[m_order || "id"];
 
-            func(first, index);
-        }
+        //     func(first, index);
+        // }
 
-        ++index;
+        // ++index;
     }
 }
 
@@ -1061,9 +792,52 @@ void uva::database::active_record_relation::each(std::function<void(std::map<std
     });
 }
 
+var uva::database::active_record_relation::create(var values)
+{
+    if(values.is_a<var::map>()) {
+        auto& map = values.as<var::map>();
+
+        m_insert = var::array();
+        std::vector<var> values;
+
+        for(auto& pair : map) {
+            if(pair.second.type != var::var_type::undefined) {
+                const std::string& key = pair.first.as<var::string>();
+                m_columns.push_back(key);
+                values.push_back(pair.second);
+            }
+        }
+
+        m_insert.push_back(values);
+    }
+
+    std::string sql = commit_sql();
+    var rows = uva::database::basic_connection::get_connection()->select_all(sql);
+
+    if(rows.size() == 1) {
+        return rows[0];
+    }
+
+    return rows;
+}
+
+var uva::database::active_record_relation::update(var values)
+{
+    if(values.is_a<var::map>()) {
+        auto& map = values.as<var::map>();
+
+        for(auto& pair : map) {
+            m_update[pair.first.as<var::string>()] = pair.second;
+        }
+    }
+
+    std::string sql = commit_sql();
+    values = uva::database::basic_connection::get_connection()->select_all(sql);
+}
+
 bool uva::database::active_record_relation::empty()
 {
-    commit();
+    //commit();
     return m_results.empty();
 }
 
@@ -1114,15 +888,25 @@ std::string uva::database::active_record_relation::commit_sql() const
     if(m_update.size()) {
         sql_buffer += "UPDATE " + m_table->m_name + " SET ";
 
-        sql_buffer += uva::string::join(
-            uva::string::join(m_update, [](const auto& val) {
-                std::string val_str = val.second.to_s();
-                if(val.second.type == var::var_type::string) {
-                    val_str = uva::string::prefix_sufix(val_str, "'", "'");
+        size_t i = 0;
+        for(const auto& value : m_update)
+        {
+            if(value.second.type != var::var_type::undefined) {
+                sql_buffer.append(value.first);
+
+                sql_buffer.append(" = ");
+
+                value.second.append_to(sql_buffer);
+
+                if(i >= m_update.size() - 1) {
+                    break;
                 }
-                return std::format("{}={}", val.first, val_str);
-            }),
-        ',');
+
+                sql_buffer.append(", ");
+            }
+
+            ++i;
+        }
     }
 
     if(m_select.size() && !m_update.size()) {
@@ -1137,8 +921,9 @@ std::string uva::database::active_record_relation::commit_sql() const
         sql_buffer += " WHERE " + m_where;
     }
 
-    if(!m_unscoped) {
-        sql_buffer += (m_where.size() ? " AND " : " WHERE ") + (std::string)"removed = 0";
+    if(!m_unscoped && !m_insert.size()) {
+        static std::string defualt_scope = "removed = false";
+        sql_buffer += (m_where.size() ? " AND " : " WHERE ") + defualt_scope;
     }
 
     if(m_group.size()) {
@@ -1174,13 +959,14 @@ std::string uva::database::active_record_relation::commit_sql() const
 
             for(size_t x = 0; x < m_insert[i].size(); ++x)
             {
-                if(m_insert[i][x].type == var::var_type::null_type) {
+                var value = m_insert[i][x];
+                if(value.type == var::var_type::null_type) {
                     sql_buffer += "null";
                 }
-                else if(m_insert[i][x].type == var::var_type::string)
+                else if(value.is_a<var::string>())
                 {
                     sql_buffer.push_back('\'');
-                        m_insert[i][x].each([](const char& c) {
+                        value.each([](const char& c) {
                             sql_buffer.push_back(c);
                             if(c == '\'')
                             {
@@ -1188,8 +974,12 @@ std::string uva::database::active_record_relation::commit_sql() const
                             }
                         });
                     sql_buffer.push_back('\'');
+                } else if(value.is_a<var::string>()) {
+                    sql_buffer += value.to_s();
                 } else {
-                    sql_buffer += m_insert[i][x].to_s();
+                    sql_buffer.push_back('\'');
+                    sql_buffer += value.to_typed_s('{', '}', true);
+                    sql_buffer.push_back('\'');
                 }
 
                 if(x < m_insert[i].size()-1)
@@ -1325,23 +1115,8 @@ void uva::database::active_record_relation::commit_without_prepare(const std::st
 
 uva::database::active_record_relation::operator uva::core::var()
 {
-    std::vector<var> values;
-
-    uva::database::active_record_relation rel = *this;
-    rel.commit();
-
-    for(auto& value : rel.m_results)
-    {
-        int col_it = 0;
-        std::map<var, var> row;
-        for(const std::string& col : rel.m_columnsNames) {
-            row.insert({col,std::move(value[col_it])});
-            col_it++;
-        }
-        values.push_back(std::move(row));
-    }
-
-    return var(std::move(values));
+    std::string sql = commit_sql();
+    return uva::database::basic_connection::get_connection()->select_all(sql);
 }
 
 void uva::database::active_record_relation::commit(const std::string& sql)
@@ -1528,7 +1303,9 @@ uva::database::basic_migration::basic_migration(const std::string& __title, std:
 }
 
 bool uva::database::basic_migration::is_pending() {
-    return !find_by("title='{}'", title).present();
+    var migration = all().where("title = {}", title).select("1 AS exists").first();
+
+    return migration.is_null();
 }
 
 // uva::database::table* uva::database::basic_migration::get_table()
@@ -1563,7 +1340,7 @@ void uva::database::basic_migration::call_change()
             std::cout << uva::console::color(uva::console::color_code::green) << std::format("{}: {}...", this->title, std::chrono::duration_cast<std::chrono::milliseconds>(elapsed)) << std::endl;
         #endif
 
-    } catch(std::exception e)
+    } catch(std::exception& e)
     {
         std::cout << uva::console::color(uva::console::color_code::red) << std::format("{}: {}\n\nAborting...", this->title, e.what()) << std::endl;
         exit(EXIT_FAILURE);
@@ -1607,10 +1384,10 @@ void uva::database::basic_migration::apply()
     save();
 }
 
-void uva::database::basic_migration::add_table(const std::string& table_name, const std::vector<std::pair<std::string, std::string>>& cols)
+void uva::database::basic_migration::add_table(const std::string& table_name, const std::map<std::string, std::string>& cols)
 {
     uva::database::table* new_table = new uva::database::table(table_name, cols);
-    uva::database::basic_connection::get_connection()->create_table(new_table);
+    uva::database::table::create_table(new_table);
 }
 
 void uva::database::basic_migration::drop_table(const std::string& table_name)
@@ -1620,7 +1397,7 @@ void uva::database::basic_migration::drop_table(const std::string& table_name)
 
 void uva::database::basic_migration::add_index(const std::string& table_name, const std::string& column)
 {
-    uva::database::active_record_relation().commit_without_prepare(std::format("CREATE INDEX IF NOT EXISTS idx_{}_on_{} ON {}({});", table_name, uva::string::replace(column, ',', '_'), table_name, column));
+    uva::database::basic_connection::get_connection()->run_sql(std::format("CREATE INDEX IF NOT EXISTS idx_{}_on_{} ON {}({});", table_name, uva::string::replace(column, ',', '_'), table_name, column));
 }
 
 void uva::database::basic_migration::drop_column(const std::string& table_name, const std::string& name)
