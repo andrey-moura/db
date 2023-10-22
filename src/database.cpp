@@ -32,15 +32,15 @@ var::var_type uva::database::sql_delctype_to_value_type(const std::string& type)
 
 void uva::database::within_transaction(std::function<void()> __f)
 {
-    uva::database::basic_connection::get_connection()->begin_transaction();
-    try {
-        __f();
-    } catch(std::exception e)
-    {
-        uva::database::basic_connection::get_connection()->end_transaction();    
-        throw;
-    }
-    uva::database::basic_connection::get_connection()->end_transaction();
+    // uva::database::basic_connection::get_connection()->begin_transaction();
+    // try {
+    //     __f();
+    // } catch(std::exception e)
+    // {
+    //     uva::database::basic_connection::get_connection()->end_transaction();    
+    //     throw;
+    // }
+    // uva::database::basic_connection::get_connection()->end_transaction();
 }
 
 
@@ -104,87 +104,13 @@ bool uva::database::sqlite3_connection::open(const std::filesystem::path& path)
     return m_database;
 }
 
-bool uva::database::sqlite3_connection::create_table(const uva::database::table* table) const
-{
- 
-}
-
-void uva::database::sqlite3_connection::alter_table(uva::database::table* table, const std::string& new_signature)
-{
-
-}
-
-bool uva::database::sqlite3_connection::insert(table* table, size_t id, const std::map<std::string, std::string>& relations) {
-
-}
-
-bool uva::database::sqlite3_connection::insert(table* table, size_t id, const std::vector<std::map<std::string, std::string>>& relations)
-{
-
-}
 
 bool uva::database::sqlite3_connection::is_open() const
 {
     return m_database;
 }
 
-void uva::database::sqlite3_connection::update(size_t id, const std::string& key, const std::string& value, uva::database::table* table) {
-
-}
-
-void uva::database::sqlite3_connection::destroy(size_t id, uva::database::table* table)
-{
-
-}
-
-void uva::database::sqlite3_connection::drop_column(uva::database::table* table, const std::string& name)
-{
-
-}
-
-void uva::database::sqlite3_connection::add_column(uva::database::table* table, const std::string& name, const std::string& type, const std::string& default_value)
-{
-
-}
-
-void uva::database::sqlite3_connection::change_column(uva::database::table* table, const std::string& name, const std::string& type)
-{
-
-}
-
-void uva::database::sqlite3_connection::begin_transaction() 
-{
-  
-}
-
-void uva::database::sqlite3_connection::end_transaction() 
-{
-
-}
-
 //END SQLITE3 CONNECTION
-
-std::string& uva::database::table::at(size_t id, const std::string& key) {
-
-}
-
-void uva::database::table::drop_column(const std::string& name) {
-
-    uva::database::basic_connection::get_connection()->drop_column(this, name);
-
-}
-
-void uva::database::table::add_column(const std::string& name, const std::string& type, const std::string& default_value) {
-
-    uva::database::basic_connection::get_connection()->add_column(this, name, type, default_value);
-
-}
-
-void uva::database::table::change_column(const std::string& name, const std::string& type) {
-
-    uva::database::basic_connection::get_connection()->change_column(this, name, type);
-
-}
 
 //TABLE
 
@@ -264,131 +190,6 @@ uva::database::table* uva::database::table::get_table(const std::string& name) {
     }
 
     return it->second;
-}
-
-size_t uva::database::table::create(const std::map<std::string, var>& relations)
-{
-    auto keys_values = uva::string::split(relations);
-
-    auto relation = uva::database::active_record_relation(this).unscoped().insert(keys_values.second).columns(keys_values.first).into(m_name).returning("id");
-
-    //var results = 
-
-    //return relation[0]["id"].to_i();
-
-    return 0;
-}
-
-void uva::database::table::create(std::vector<var>& relations, const std::vector<std::string>& columns)
-{
-    var rows = std::move(relations);
-
-    auto relation = uva::database::active_record_relation(this).insert(rows).columns(columns).into(m_name).unscoped();
-    relation.commit_without_prepare(relation.to_sql());
-}
-
-void uva::database::table::create(var& rows, const std::vector<std::string>& columns)
-{
-    auto relation = uva::database::active_record_relation(this).insert(rows).columns(columns).into(m_name).unscoped();
-    relation.commit_without_prepare(relation.to_sql());
-}
-
-void uva::database::table::create(std::vector<std::map<std::string, var>>& relations)
-{
-    std::vector<std::string> keys;
-    std::vector<var> values;
-
-    for(auto& row : relations)
-    {
-        auto keys_values = uva::string::split(row);
-        row.clear();
-
-        if(keys.empty()) {
-            keys = keys_values.first;
-        } else {
-            #if UVA_DEBUG_LEVEL > 3
-                bool keys_match = keys.size() == keys_values.first.size() && std::equal(keys.begin(), keys.end(), keys_values.first.begin());
-
-                if(!keys_match) {
-                    throw std::runtime_error("Wrong number of arguments");
-                    return;
-                }
-            #endif
-        }
-
-        values.insert(values.end(), keys_values.second.begin(), keys_values.second.end());
-    }
-
-    auto relation = uva::database::active_record_relation(this).insert(values).columns(keys).into(m_name).unscoped();
-    relation.commit_without_prepare(relation.to_sql());
-}
-
-void uva::database::table::create(std::vector<std::vector<var>>& values, const std::vector<std::string>& columns)
-{
-    auto relation = uva::database::active_record_relation(this).insert(values).columns(columns).into(m_name).unscoped();
-    relation.commit_without_prepare(relation.to_sql());
-}
-
-size_t uva::database::table::create() {
-
-}
-
-void uva::database::table::destroy(size_t id) {
-
-}
-
-bool uva::database::table::relation_exists(size_t id) const {
-    return m_relations.find(id) != m_relations.end();
-}
-
-size_t uva::database::table::find(size_t id) const {
-    if (id == std::string::npos) return std::string::npos;
-    auto it = m_relations.find(id);
-
-    return std::string::npos;
-}
-
-size_t uva::database::table::find_by(const std::map<std::string, std::string>& relations)
-{
-    for (const auto& record : m_relations) {
-        bool match = true;
-        for (const auto& relation : relations) {
-            if (relation.second != record.second.find(relation.first)->second) {
-                match = false;
-                break;
-            }            
-        }
-        if (match) return record.first;
-    }
-
-    return std::string::npos;
-}
-
-size_t uva::database::table::first() {
-    auto it = m_relations.begin();
-    return it != m_relations.end() ? it->first : std::string::npos;
-}
-
-size_t uva::database::table::last() {
-    auto it = m_relations.rbegin();
-    return it != m_relations.rend() ? it->first : std::string::npos;
-}
-
-std::vector<std::pair<std::string, std::string>>::iterator uva::database::table::find_column(const std::string& col) {
-
-}
-
-std::vector<std::pair<std::string, std::string>>::const_iterator uva::database::table::find_column(const std::string& col) const {
-
-}
-
-void uva::database::table::update(size_t id, const std::map<std::string, var>& values)
-{
-    active_record_relation(this).where("id = {}", id).update(values);
-}
-
-void uva::database::table::update(size_t id, const std::string& key, const var& value) {
-    update(id, { { key, value } });
 }
 
 //END TABLE
@@ -538,26 +339,26 @@ void uva::database::basic_active_record::save()
 
 void uva::database::basic_active_record::update(const std::string& col, const var& value)
 {
-    values[col] = value;
-    before_update();
+    // values[col] = value;
+    // before_update();
 
-    uva::database::table* table = get_table();
-    table->update(values["id"], col, value);
+    // uva::database::table* table = get_table();
+    // table->update(values["id"], col, value);
 
-    before_save();
+    // before_save();
 }
 
 void uva::database::basic_active_record::update(const std::map<std::string, var>& _values)
 {
-    for(const auto& value : _values) {
-        values[value.first] = value.second;
-    }
+    // for(const auto& value : _values) {
+    //     values[value.first] = value.second;
+    // }
 
-    before_update();
+    // before_update();
     
-    get_table()->update(values["id"], _values);
+    // get_table()->update(values["id"], _values);
 
-    before_save();
+    // before_save();
 }
 
 //END ACTIVE RECORD
@@ -733,8 +534,8 @@ size_t uva::database::active_record_relation::count(const std::string& count) co
 
         return first_col->to_i();
 
-    } catch(std::exception& e) {
-
+    } catch(const std::exception& e) {
+        (void)e;
     }
 
     return 0;
@@ -833,27 +634,14 @@ var uva::database::active_record_relation::update(var values)
 
     std::string sql = commit_sql();
     values = uva::database::basic_connection::get_connection()->select_all(sql);
+
+    return values;
 }
 
 bool uva::database::active_record_relation::empty()
 {
     //commit();
     return m_results.empty();
-}
-
-std::map<std::string, var> uva::database::active_record_relation::operator[](const size_t& index)
-{
-    std::map<std::string, var> result;
-
-    auto row = m_results[index];
-
-    auto col_it = row.begin();
-    for(const std::string& col : m_columnsNames) {
-        result.insert({col,*col_it});
-        col_it++;
-    }
-
-    return result;
 }
 
 uva::database::active_record_relation uva::database::active_record_relation::unscoped()
@@ -880,7 +668,7 @@ std::string sql_buffer;
 
 std::string uva::database::active_record_relation::commit_sql() const
 {
-    var arr = empty_array;
+    var arr = var::array();
 
     sql_buffer.clear();
     sql_buffer.reserve(query_buffer_lenght); 
@@ -1220,7 +1008,7 @@ void uva::database::active_record_relation::commit(const std::string& sql)
                 }
 
                 cols.push_back(std::move(holder));
-                #ifdef UVA_DEBUG_LEVEL > 1
+                #if UVA_DEBUG_LEVEL > 1
                     if(cols.back().type != value_type)
                     {
                         throw std::runtime_error("reading SQL results wrong data type");
@@ -1403,20 +1191,20 @@ void uva::database::basic_migration::add_index(const std::string& table_name, co
 void uva::database::basic_migration::drop_column(const std::string& table_name, const std::string& name)
 {
     uva::database::table* table = uva::database::table::get_table(table_name);
-    table->drop_column(name);
+   // table->drop_column(name);
 }
 
 
 void uva::database::basic_migration::add_column(const std::string& table_name, const std::string& name, const std::string& type, const std::string& default_value) const
 {
     uva::database::table* table = uva::database::table::get_table(table_name);
-    table->add_column(name, type, default_value);
+  //  table->add_column(name, type, default_value);
 }
 
 void uva::database::basic_migration::change_column(const std::string& table_name, const std::string& name, const std::string& type) const
 {
     uva::database::table* table = uva::database::table::get_table(table_name);
-    table->change_column(name, type);
+  //  table->change_column(name, type);
 }
 
 //END BASIC MIGRATION
