@@ -13,11 +13,9 @@
 
 #include "sqlite3.h"
 
-#if defined __has_include
-#   if __has_include (<pqxx/pqxx>)
+#ifdef __UVA_PQXX_FOUND__
 #       undef null
 #       include <pqxx/pqxx>
-#   endif
 #endif
 
 #include <core.hpp>
