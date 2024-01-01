@@ -50,7 +50,7 @@ database new-model user --migrate
 #include <core.hpp>
 #include <database.hpp>
 
-class User : public uva::database::basic_active_record
+class User : public uva::db::basic_active_record
 {    
     uva_database_declare(User);
 };
@@ -60,7 +60,7 @@ class User : public uva::database::basic_active_record
 ```cpp
 #include <user.hpp>
 
-uva_database_define(User);
+uva_db_define(User);
 ```
 
 ### The optional --migrate option generates the following migration
@@ -71,9 +71,9 @@ uva_database_define(User);
 
 #include <user.hpp>
 
-class AddUsersMigration : public uva::database::basic_migration
+class AddUsersMigration : public uva::db::basic_migration
 {
-uva_declare_migration(AddUsersMigration);
+uva_db_declare_migration(AddUsersMigration);
 protected:
     virtual void change() override 
     { 
@@ -87,13 +87,13 @@ protected:
     }
 };
 
-uva_define_migration(AddUsersMigration);
+uva_db_define_migration(AddUsersMigration);
 ```
 
 Columns are defined inside the map in second parameter of `add_table`. Those columns are accessed by `User::operator[](std::string)`, they'll only be available with the `User::operator.` when exposing the column inside the class:
 
 ```cpp
-uva_database_expose_column(password);
+uva_db_expose_column(password);
 ```
 
 ## Supported database engines

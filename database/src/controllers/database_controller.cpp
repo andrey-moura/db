@@ -40,7 +40,7 @@ void create_model(const var& name)
 
     var header_format =
 R"~~~(
-class {} : public uva::database::basic_active_record
+class {} : public uva::db::basic_active_record
 {{
 public:
     uva_database_declare({});
@@ -55,7 +55,7 @@ public:
 		return;
 	}
 
-    var source_format = "#include \"{}.hpp\"\n\nuva_database_define({});";
+    var source_format = "#include \"{}.hpp\"\n\nuva_db_define({});";
     
     model_source_file << source_format.format(file_name, name);
 }
@@ -92,16 +92,16 @@ void create_migration(const var& name, const var& content)
 
     var migration_format =
 R"~~~(
-class {} : public uva::database::basic_migration
+class {} : public uva::db::basic_migration
 {{
-uva_declare_migration({});
+uva_db_declare_migration({});
 protected:
     virtual void change() override 
     {{ {}
     }}
 }};
 
-uva_define_migration({});
+uva_db_define_migration({});
 )~~~";
 
     var migration_content = migration_format.format(name, name, content, name);
@@ -138,7 +138,7 @@ void database_controller::init()
     std::string database_name = "database";
 
     const char* const database_defination_format =
-    "\n\tuva_database_define_{}(std::filesystem::path(\"{}\") / \"{}.db\");\n\tuva_run_migrations();\n";
+    "\n\tuva_db_define_{}(std::filesystem::path(\"{}\") / \"{}.db\");\n\tuva_db_run_migrations();\n";
 
     std::string database_defination = std::format(database_defination_format, engine, path, database_name);
 

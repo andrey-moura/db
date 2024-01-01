@@ -1,6 +1,6 @@
 #include <database.hpp>
 
-uva::database::basic_active_record::operator var() const
+uva::db::basic_active_record::operator var() const
 {
     return values;
 }

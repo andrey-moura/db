@@ -1,7 +1,7 @@
 #include <database.hpp>
 
 #ifdef __UVA_PQXX_FOUND__
-    uva::database::postgres_connection::postgres_connection(var params)
+    uva::db::postgres_connection::postgres_connection(var params)
     {
         std::string cmd;
         for(auto& param : params.as<var::map>()) {
@@ -13,11 +13,11 @@
         bool is_open = m_pqxx_connection->is_open();
     }
 
-    uva::database::postgres_connection::~postgres_connection()
+    uva::db::postgres_connection::~postgres_connection()
     {
     }
 
-    void uva::database::postgres_connection::run_sql(const std::string &sql)
+    void uva::db::postgres_connection::run_sql(const std::string &sql)
     {
         std::string error_msg;
 
@@ -75,7 +75,7 @@
         }
     }
 
-    var uva::database::postgres_connection::select_all(const std::string &sql)
+    var uva::db::postgres_connection::select_all(const std::string &sql)
     {
         std::vector<var> rows;
         std::string error_msg;

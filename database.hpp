@@ -22,7 +22,7 @@
 #include <console.hpp>
 #include <diagnostics.hpp>
 #include <uva/string.hpp>
-// record(record&& other) : uva::database::basic_active_record(std::forward<std::map<std::string, var>>(other.values))\
+// record(record&& other) : uva::db::basic_active_record(std::forward<std::map<std::string, var>>(other.values))\
 // {\
 //     other.id = 0;\
 // }\
@@ -33,13 +33,13 @@
 
 #define uva_database_declare(record) \
 public:\
-    record() : uva::database::basic_active_record() { } \
-    record(const record& other) : uva::database::basic_active_record(other) { } \
-    record(var&& values) : uva::database::basic_active_record(std::move(values)) { } \
-    record(const var& values) : uva::database::basic_active_record(values) { } \
-    const uva::database::table* get_table() const override { return table(); } \
-    uva::database::table* get_table() override { return table(); } \
-    static uva::database::table* table(); \
+    record() : uva::db::basic_active_record() { } \
+    record(const record& other) : uva::db::basic_active_record(other) { } \
+    record(var&& values) : uva::db::basic_active_record(std::move(values)) { } \
+    record(const var& values) : uva::db::basic_active_record(values) { } \
+    const uva::db::table* get_table() const override { return table(); } \
+    uva::db::table* get_table() override { return table(); } \
+    static uva::db::table* table(); \
     static record create(std::map<var, var>&& relations) {\
         record r(std::move(relations)); \
         r.save();\
@@ -52,14 +52,14 @@ public:\
     } \
     static size_t column_count() { return table()->m_columns.size(); } \
     static std::map<std::string, std::string>& columns() { return table()->m_columns; } \
-    static uva::database::active_record_relation all() { return uva::database::active_record_relation(table()).select("*").from(table()->m_name);  } \
-    template<class... Args> static uva::database::active_record_relation where(const std::string where, Args const&... args) { return record::all().where(where, args...); }\
-    static uva::database::active_record_relation from(const std::string& from) { return record::all().from(from); } \
-    static uva::database::active_record_relation select(const std::string& select) { return record::all().select(select); } \
+    static uva::db::active_record_relation all() { return uva::db::active_record_relation(table()).select("*").from(table()->m_name);  } \
+    template<class... Args> static uva::db::active_record_relation where(const std::string where, Args const&... args) { return record::all().where(where, args...); }\
+    static uva::db::active_record_relation from(const std::string& from) { return record::all().from(from); } \
+    static uva::db::active_record_relation select(const std::string& select) { return record::all().select(select); } \
     static size_t count(const std::string& count = "*") { return record::all().count(); } \
-    template<class... Args> static uva::database::active_record_relation order_by(const std::string order, Args const&... args) { return record::all().order_by(order, args...); }\
-    static uva::database::active_record_relation limit(const std::string& limit) { return record::all().limit(limit); } \
-    static uva::database::active_record_relation limit(const size_t& limit) { return record::all().limit(limit); } \
+    template<class... Args> static uva::db::active_record_relation order_by(const std::string order, Args const&... args) { return record::all().order_by(order, args...); }\
+    static uva::db::active_record_relation limit(const std::string& limit) { return record::all().limit(limit); } \
+    static uva::db::active_record_relation limit(const size_t& limit) { return record::all().limit(limit); } \
     static void each_with_index(std::function<void(std::map<std::string, var>&, const size_t&)> func) { return record::all().each_with_index(func); }\
     static void each(std::function<void(std::map<std::string, var>&)> func) { return record::all().each(func); }\
     static void each_with_index(std::function<void(record&, const size_t&)> func) { return record::all().each_with_index<record>(func); }\
@@ -90,32 +90,32 @@ public:\
         return class_name;\
     };\
 
-#define uva_database_expose_column(column_name)\
-    uva::database::basic_active_record_column column_name = { #column_name, (basic_active_record*)this };
+#define uva_db_expose_column(column_name)\
+    uva::db::basic_active_record_column column_name = { #column_name, (basic_active_record*)this };
 
-#define uva_database_define_full(record, __table_name) \
-uva::database::table* record::table() { \
+#define uva_db_define_full(record, __table_name) \
+uva::db::table* record::table() { \
 \
     static std::string table_name = __table_name; \
 \
-    static uva::database::table* table = uva::database::table::get_table(table_name);\
+    static uva::db::table* table = uva::db::table::get_table(table_name);\
     \
     return table; \
 }\
 
-#define uva_database_define(record) uva_database_define_full(record, uva::string::to_snake_case(uva::string::pluralize(#record)))
+#define uva_db_define(record) uva_db_define_full(record, uva::string::to_snake_case(uva::string::pluralize(#record)))
 
-#define uva_database_define_sqlite3(db) uva::database::sqlite3_connection* connection = new uva::database::sqlite3_connection(db);
+#define uva_db_define_sqlite3(db) uva::db::sqlite3_connection* connection = new uva::db::sqlite3_connection(db);
 
-#define uva_declare_migration(migration) public: migration()
+#define uva_db_declare_migration(migration) public: migration()
 
-#define uva_define_migration(m) m::m() : uva::database::basic_migration(#m, __FILE__) {  } m* _##m = new m();
+#define uva_db_define_migration(m) m::m() : uva::db::basic_migration(#m, __FILE__) {  } m* _##m = new m();
 
-#define uva_run_migrations() uva::database::basic_migration::do_pending_migrations();
+#define uva_db_run_migrations() uva::db::basic_migration::do_pending_migrations();
 
 namespace uva
 {
-    namespace database
+    namespace db
     {        
         // Default value of query_buffer_lenght. Don't change this. You can change query_buffer_lenght.
         static constexpr size_t query_buffer_lenght_default = 1024;
@@ -323,10 +323,10 @@ namespace uva
             std::string primary_key;
             static std::map<std::string, table*>& get_tables();
             static table* get_table(const std::string& name);
-            static void add_table(uva::database::table* table);
+            static void add_table(uva::db::table* table);
 
             /* SQL */
-            static void create_table(uva::database::table* table);
+            static void create_table(uva::db::table* table);
         };
         class basic_active_record_column
         {
@@ -373,7 +373,7 @@ namespace uva
             std::map<std::string, basic_active_record_column*> columns;
             //Need to come AFTER values and columns declaration
         public:
-            uva_database_expose_column(id);
+            uva_db_expose_column(id);
         public:
             basic_active_record& operator=(const basic_active_record& other);
         public:
@@ -421,8 +421,8 @@ namespace uva
 };
 
 template <>
-struct std::formatter<uva::database::basic_active_record_column> : std::formatter<std::string> {
-    auto format(const uva::database::basic_active_record_column& v, format_context& ctx) {
+struct std::formatter<uva::db::basic_active_record_column> : std::formatter<std::string> {
+    auto format(const uva::db::basic_active_record_column& v, format_context& ctx) {
         return std::format_to(ctx.out(), "{}", v->to_s());
     }
 };

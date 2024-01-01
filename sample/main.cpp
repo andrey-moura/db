@@ -6,19 +6,19 @@
 
 std::filesystem::path db_path = std::filesystem::absolute("sample") / "database.db";
 
-class User : public uva::database::basic_active_record
+class User : public uva::db::basic_active_record
 {    
     uva_database_declare(User);
-    uva_database_expose_column(name);
-    uva_database_expose_column(password);
-    uva_database_expose_column(age);
+    uva_db_expose_column(name);
+    uva_db_expose_column(password);
+    uva_db_expose_column(age);
 };
 
-uva_database_define(User);
+uva_db_define(User);
 
-class AddUsersMigration : public uva::database::basic_migration
+class AddUsersMigration : public uva::db::basic_migration
 {
-uva_declare_migration(AddUsersMigration);
+uva_db_declare_migration(AddUsersMigration);
 protected:
     virtual void change() override 
     { 
@@ -35,7 +35,7 @@ protected:
     }
 };
 
-uva_define_migration(AddUsersMigration);
+uva_db_define_migration(AddUsersMigration);
 
 int main()
 {
@@ -44,8 +44,8 @@ int main()
     }
 
     //Good to put under your app initialization
-    uva_database_define_sqlite3(db_path);
-    uva_run_migrations();
+    uva_db_define_sqlite3(db_path);
+    uva_db_run_migrations();
 
     User user;
     user.name = "Dummy";

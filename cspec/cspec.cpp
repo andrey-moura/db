@@ -2,7 +2,7 @@
 #include <faker.hpp>
 #include <cspec.hpp>
 
-using namespace uva::database;
+using namespace uva::db;
 
 class Product : public basic_active_record
 {
@@ -30,12 +30,12 @@ class MultipleValueHolder : public basic_active_record
 uva_database_declare(MultipleValueHolder);
 };
 
-uva_database_define(Product);
-uva_database_define(MultipleValueHolder);
+uva_db_define(Product);
+uva_db_define(MultipleValueHolder);
 
 class AddProductsMigration : public basic_migration
 {
-    uva_declare_migration(AddProductsMigration);
+    uva_db_declare_migration(AddProductsMigration);
 public:
     virtual void change() override
     {
@@ -49,7 +49,7 @@ public:
 
 class AddMultipleValueHoldersMigration : public basic_migration
 {
-    uva_declare_migration(AddMultipleValueHoldersMigration);
+    uva_db_declare_migration(AddMultipleValueHoldersMigration);
 public:
     virtual void change() override
     {
@@ -63,12 +63,12 @@ public:
     }
 };
 
-uva_define_migration(AddProductsMigration)
-uva_define_migration(AddMultipleValueHoldersMigration)
+uva_db_define_migration(AddProductsMigration)
+uva_db_define_migration(AddMultipleValueHoldersMigration)
 
 static std::filesystem::path database_path;
 
-cspec_describe("uva::database",
+cspec_describe("uva::db",
 
     context("setting up a new database", 
 
@@ -81,9 +81,9 @@ cspec_describe("uva::database",
             expect(database_path).to_not exist;
         })
 
-        it("should create a new database after uva_database_define", []()
+        it("should create a new database after uva_db_define", []()
         {
-           uva_database_define_sqlite3(database_path);
+           uva_db_define_sqlite3(database_path);
            expect(database_path).to exist;
         })
 
@@ -92,9 +92,9 @@ cspec_describe("uva::database",
            expect(basic_migration::where("title='{}'", "AddProductsMigration")).to_not exist;
         })
 
-        it("should create AddProductMigration migration after uva_run_migrations", []()
+        it("should create AddProductMigration migration after uva_db_run_migrations", []()
         {
-           uva_run_migrations()
+           uva_db_run_migrations()
            expect(basic_migration::where("title='{}'", "AddProductsMigration")).to exist;
         })
 
