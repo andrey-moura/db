@@ -18,10 +18,10 @@
 #       include <pqxx/pqxx>
 #endif
 
-#include <core.hpp>
+#include <uva/core.hpp>
 #include <console.hpp>
 #include <diagnostics.hpp>
-#include <string.hpp>
+#include <uva/string.hpp>
 // record(record&& other) : uva::database::basic_active_record(std::forward<std::map<std::string, var>>(other.values))\
 // {\
 //     other.id = 0;\
