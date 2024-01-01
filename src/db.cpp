@@ -5,10 +5,14 @@
 
 std::map<std::string, var::var_type> uva::db::sql_values_types_map 
 {
-    { "NULL", var::var_type::null_type },
-    { "TEXT", var::var_type::string },
-    { "INTEGER", var::var_type::integer },
-    { "REAL", var::var_type::real },
+    { "NULL",             var::var_type::null_type },
+    { "TEXT",             var::var_type::string },
+    { "INTEGER",          var::var_type::integer },
+    { "SERIAL",           var::var_type::integer },
+    { "TIMESTAMP",        var::var_type::integer },
+    { "BOOLEAN",          var::var_type::integer },
+    { "DOUBLE PRECISION", var::var_type::real },
+    { "REAL",             var::var_type::real },
 };
 
 var::var_type uva::db::sql_delctype_to_value_type(const std::string& type)
@@ -139,12 +143,18 @@ void uva::db::table::add_table(uva::db::table* table)
 }
 
 std::string sql;
-void uva::db::table::create_table(uva::db::table* table)
+void uva::db::table::create_table(uva::db::table* table, bool if_not_exists)
 {
     /* Create SQL statement */
     sql.reserve(1024);
+
+    std::string if_not_exists_str;
+
+    if(if_not_exists) {
+        if_not_exists_str = " IF NOT EXISTS ";
+    }
     
-    sql = "CREATE TABLE IF NOT EXISTS " + table->m_name + "(";
+    sql = "CREATE TABLE " + if_not_exists_str + table->m_name + "(";
 
     for(const auto& col : table->m_columns)
     {
@@ -166,27 +176,7 @@ uva::db::table* uva::db::table::get_table(const std::string& name) {
     auto it = tables.find(name);
 
     if (it == tables.end()) {
-
-        if(name == "database_migrations") {
-            uva::db::table * info_table = new uva::db::table("database_migrations",
-            {
-                { "id",         "SERIAL PRIMARY KEY" },
-                { "title",      "TEXT NOT NULL" },
-                { "updated_at", "TIMESTAMP NOT NULL" },
-                { "created_at", "TIMESTAMP NOT NULL" },
-                { "removed",    "BOOLEAN NOT NULL DEFAULT false" },    
-            });
-
-            //The table is only created if not exists
-            uva::db::table::create_table(info_table);
-
-            return info_table;
-        } else {
-            return new uva::db::table(name);
-        }
-
-        //throw
-        return nullptr;
+        return new uva::db::table(name);
     }
 
     return it->second;
@@ -1091,7 +1081,7 @@ uva::db::basic_migration::basic_migration(const std::string& __title, std::strin
 }
 
 bool uva::db::basic_migration::is_pending() {
-    var migration = all().where("title = {}", title).select("1 AS exists").first();
+    var migration = all().where("title = {}", title).select("1 AS any").first();
 
     return migration.is_null();
 }
@@ -1178,6 +1168,12 @@ void uva::db::basic_migration::add_table(const std::string& table_name, const st
     uva::db::table::create_table(new_table);
 }
 
+void uva::db::basic_migration::add_table_if_not_exists(const std::string &table_name, const std::map<std::string, std::string> &cols)
+{
+    uva::db::table* new_table = new uva::db::table(table_name, cols);
+    uva::db::table::create_table(new_table, true);
+}
+
 void uva::db::basic_migration::drop_table(const std::string& table_name)
 {
     uva::db::active_record_relation().commit_without_prepare(std::format("DROP TABLE {};", table_name));
@@ -1185,7 +1181,7 @@ void uva::db::basic_migration::drop_table(const std::string& table_name)
 
 void uva::db::basic_migration::add_index(const std::string& table_name, const std::string& column)
 {
-    uva::db::basic_connection::get_connection()->run_sql(std::format("CREATE INDEX IF NOT EXISTS idx_{}_on_{} ON {}({});", table_name, uva::string::replace(column, ',', '_'), table_name, column));
+    uva::db::basic_connection::get_connection()->run_sql(std::format("CREATE INDEX idx_{}_on_{} ON {}({});", table_name, uva::string::replace(column, ',', '_'), table_name, column));
 }
 
 void uva::db::basic_migration::drop_column(const std::string& table_name, const std::string& name)

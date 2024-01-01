@@ -326,7 +326,7 @@ namespace uva
             static void add_table(uva::db::table* table);
 
             /* SQL */
-            static void create_table(uva::db::table* table);
+            static void create_table(uva::db::table* table, bool if_not_exists = false);
         };
         class basic_active_record_column
         {
@@ -401,7 +401,7 @@ namespace uva
             std::string title;
             std::string date_str;
         public:
-            bool is_pending();
+            virtual bool is_pending();
             virtual void change() {};
             void apply();
         public:
@@ -411,7 +411,10 @@ namespace uva
             void call_change();
         public:
             void add_table(const std::string& table_name, const std::map<std::string, std::string>& cols);
+            void add_table_if_not_exists(const std::string& table_name, const std::map<std::string, std::string>& cols);
+
             void drop_table(const std::string& table_name);
+
             void drop_column(const std::string& table_name, const std::string& name);
             void add_column(const std::string& table_name, const std::string& name, const std::string& type, const std::string& default_value) const;
             void add_index(const std::string& table_name, const std::string& column);
