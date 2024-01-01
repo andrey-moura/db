@@ -1,4 +1,4 @@
-#include <database.hpp>
+#include <db.hpp>
 
 #ifdef __UVA_PQXX_FOUND__
     uva::db::postgres_connection::postgres_connection(var params)

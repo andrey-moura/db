@@ -48,7 +48,7 @@ database new-model user --migrate
 #### include/models/user.hpp
 ```cpp
 #include <core.hpp>
-#include <database.hpp>
+#include <db.hpp>
 
 class User : public uva::db::basic_active_record
 {    
@@ -67,7 +67,7 @@ uva_db_define(User);
 #### src\migrations\20230129161842_add_users_migration.cpp
 ```cpp
 #include <core.hpp>
-#include <database.hpp>
+#include <db.hpp>
 
 #include <user.hpp>
 
